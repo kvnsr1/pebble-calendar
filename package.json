@@ -1,0 +1,26 @@
+{
+  "name": "pebble-calendar",
+  "version": "0.1.0",
+  "author": "kvnsr1",
+  "private": true,
+  "keywords": ["pebble-app"],
+  "dependencies": {},
+  "scripts": { "test": "node --test test/*.test.js" },
+  "pebble": {
+    "displayName": "Calendar",
+    "uuid": "06c53645-3afd-4ebd-a7ab-bf80c5db422e",
+    "projectType": "native",
+    "sdkVersion": "3",
+    "enableMultiJS": true,
+    "targetPlatforms": ["emery"],
+    "watchapp": { "watchface": false },
+    "usesPermissions": ["Calendar"],
+    "messageKeys": {
+      "TYPE": 0, "GENERATION": 1, "COUNT": 2, "UPDATED": 3,
+      "INDEX": 4, "TITLE": 5, "LOCATION": 6, "CALENDAR": 7,
+      "START": 8, "END": 9, "FLAGS": 10, "ERROR": 11,
+      "DEMO": 12, "VERSION": 13, "TOKEN": 14
+    },
+    "resources": { "media": [{ "type": "bitmap", "name": "IMAGE_MENU_ICON", "file": "images/menu_icon.png", "menuIcon": true }] }
+  }
+}
