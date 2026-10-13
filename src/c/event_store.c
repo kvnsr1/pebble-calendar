@@ -3,9 +3,11 @@
 
 #define ACTIVE_KEY 100
 #define BANK_BASE 110
-#define BANK_STRIDE 32
+#define BANK_STRIDE 64
 #define CHUNK_SIZE 256
-#define STORE_VERSION 1
+#define STORE_VERSION 2
+
+_Static_assert(sizeof(CalendarSnapshot) <= (BANK_STRIDE - 1) * CHUNK_SIZE, "Snapshot must fit its cache bank");
 
 typedef struct {
   uint32_t version;
@@ -43,7 +45,7 @@ bool calendar_store_load(CalendarSnapshot *snapshot, time_t now) {
       calendar_store_clear(); return false;
     }
   }
-  if (checksum(snapshot, sizeof(*snapshot)) != header.checksum || snapshot->version != 1 ||
+  if (checksum(snapshot, sizeof(*snapshot)) != header.checksum || snapshot->version != SNAPSHOT_VERSION ||
       snapshot->count > EVENT_LIMIT || calendar_expired(snapshot, now)) {
     calendar_store_clear(); return false;
   }

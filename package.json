@@ -1,13 +1,13 @@
 {
   "name": "pebble-calendar",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "author": "kvnsr1",
   "private": true,
   "keywords": ["pebble-app"],
   "dependencies": {},
   "scripts": { "test": "node --test test/*.test.js" },
   "pebble": {
-    "displayName": "Calendar",
+    "displayName": "PebbleCal",
     "uuid": "06c53645-3afd-4ebd-a7ab-bf80c5db422e",
     "projectType": "native",
     "sdkVersion": "3",
@@ -19,7 +19,10 @@
       "TYPE": 0, "GENERATION": 1, "COUNT": 2, "UPDATED": 3,
       "INDEX": 4, "TITLE": 5, "LOCATION": 6, "CALENDAR": 7,
       "START": 8, "END": 9, "FLAGS": 10, "ERROR": 11,
-      "DEMO": 12, "VERSION": 13, "TOKEN": 14
+      "DEMO": 12, "VERSION": 13, "TOKEN": 14,
+      "ATTENDEES": 15, "ROOM_NAME": 16, "OFFICE": 17, "BUILDING": 18,
+      "FLOOR": 19, "ROOM_NUMBER": 20, "CAPACITY": 21, "FACILITIES": 22,
+      "ROOM_SOURCE": 23
     },
     "resources": { "media": [{ "type": "bitmap", "name": "IMAGE_MENU_ICON", "file": "images/menu_icon.png", "menuIcon": true }] }
   }

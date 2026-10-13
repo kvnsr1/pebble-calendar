@@ -1,12 +1,16 @@
-# Calendar for Pebble Time 2
+# PebbleCal
 
-A native, button-driven **upcoming agenda** for Pebble Time 2 (`emery`). It reads the calendars already enabled in Pebble Core through the built-in experimental Calendar plugin. No Google login, ICS link, hosted settings page, backend, separate iPhone app, or modified Core app is needed.
+A native month calendar and button-driven **upcoming agenda** for Pebble Time 2 (`emery`). It reads the calendars already enabled in Pebble Core through the built-in experimental Calendar plugin. No Google login, ICS link, hosted settings page, backend, separate iPhone app, or modified Core app is needed.
 
 **Current provider limit: the next 10 events across all enabled calendars, within seven days. Completed events are excluded. This is not a complete daily agenda.** A day with no displayed events means none were in the received list, not that your calendar is free.
 
 Synthetic emulator previews (no real calendar data):
 
-![Demo agenda](docs/screenshots/agenda-demo.png) ![Demo event details](docs/screenshots/details-demo.png)
+![Demo calendar](docs/screenshots/month-demo.png) ![Demo event details](docs/screenshots/details-demo.png)
+
+The detail screen has separate Event Name, Start Time, End Time, Room, Attendee List and Calendar sections. **Core's current Calendar plugin does not expose attendees** even though native Timeline can show them. Live attendee lists therefore say “Not provided by phone.” PebbleCal parses room resources from attendees when supplied to its adapter, and uses a matching event Location string as a labeled fallback. It does not read Timeline pins or modify Core to obtain missing fields.
+
+The room format is `OFFICE | address BUILDING-floorOrdinal-floor.room Room Name (capacity) [facilities]`. The parser extracts office, building, floor, room number, name, capacity and optional facilities, checks that both floor identifiers agree, and separates resource attendees from people. Numeric room numbers drop leading zeroes. The room card identifies whether the source was an attendee or Location. Unrecognized locations remain visible as ordinary text; no office/floor/capacity is guessed.
 
 ## iPhone prerequisites
 
@@ -19,16 +23,16 @@ The app declares only the `Calendar` permission in a version-2 app manifest. If 
 
 ## Controls
 
-| Button | Agenda | Event details |
-| --- | --- | --- |
-| Up / Down | Previous / next event | Scroll |
-| Select | Open details | — |
-| Back | Exit | Return to agenda |
-| Hold Up / Down | Previous / next date (today through seven days ahead) | — |
-| Hold Select | Return to today | — |
-| Double Select | Today, Refresh, Clear cache actions | — |
+| Button | Month calendar | Agenda | Event details |
+| --- | --- | --- | --- |
+| Up / Down | Previous / next day | Previous / next event | Scroll |
+| Select | Open selected day's agenda | Open details | — |
+| Back | Exit | Return to month | Return to agenda |
+| Hold Up / Down | Previous / next month | Previous / next date | — |
+| Hold Select | Return to today | Return to today | — |
+| Double Select | View switch, Today, Refresh, Clear cache | Same actions | — |
 
-A filled dot marks an ongoing timed event; an outlined dot marks the next timed event on the displayed day. All-day events are labeled separately. Details show title, dates/times, location and calendar when available. Times follow the watch's clock preference. Long titles/details scroll; exceptionally long metadata is bounded and marked as shortened.
+PebbleCal opens to the month view, with Monday first, a selected date and an outline around today. Month dots mark received events only. You can browse twelve months backward/forward for date planning; browsing does not fetch more events, and dates outside the received window explicitly show no schedule data. The agenda uses a filled dot for an ongoing timed event and an outlined dot for the next one. All-day events are labeled separately. Times follow the watch's clock preference. Long titles/details scroll; exceptionally long metadata is bounded and marked as shortened.
 
 ## Build locally
 
@@ -64,7 +68,7 @@ The installable package is **`dist/pebble-calendar.pbw`**. `build/pebble-calenda
 ./scripts/pebble.sh logs --emulator emery --vnc
 ```
 
-The demo PBW is `dist/pebble-calendar-demo.pbw`. It shows **DEMO** and uses only made-up events. It never substitutes synthetic events in the live app. The two builds intentionally share an app UUID: installing one replaces the other, and a cache from the other mode is discarded on opening.
+The demo PBW is `dist/pebble-calendar-demo.pbw`, named **PebbleCal Demo**. It shows **DEMO** and uses only made-up events, attendees and a fictional room resource. It never substitutes synthetic events in the live app. The two builds intentionally share an app UUID: installing one replaces the other, and a cache from the other mode is discarded on opening. Version 0.2 upgrades the event/cache format; an old 0.1 cache is discarded and refreshed through Core.
 
 The standard emulator does not implement Core's native Calendar plugin. Use the demo for UI testing. Installing the live PBW in that emulator should report that plugins need enabling; it cannot prove iPhone calendar access. `--vnc` works in a headless environment as well as on a Mac.
 
@@ -96,7 +100,7 @@ The app keeps no persistent phone-side event cache, makes no web requests and up
 
 Requires Node.js and a host C compiler (`cc`; Xcode Command Line Tools on macOS). Tests use synthetic events only. They cover provider validation, chronological merging, missing fields, UTF-8 bounds, empty/update/delete snapshots, message acknowledgments, stale subscription callbacks, and error redaction. Native tests exercise date boundaries, midnight spans, all-day date semantics, 23/25-hour DST days, cache expiry/corruption and every interruption point in a cache write.
 
-Build and emulator validation were performed in the cloud workspace. Actual EventKit delivery through your iPhone on iOS 27, background suspension/reconnect behavior and physical Time 2 installation still need the [device checklist](docs/device-validation.md). No real personal or corporate events were accessed during development.
+Build and emulator validation were performed in the cloud workspace. The original live app was successfully installed through the cloud Developer Connection. Actual EventKit delivery through your iPhone on iOS 27 and background suspension/reconnect behavior still need the [device checklist](docs/device-validation.md). No real personal or corporate events were accessed during development.
 
 ## Limitations and troubleshooting
 
@@ -107,7 +111,8 @@ Build and emulator validation were performed in the cloud workspace. Actual Even
 - **Allow Calendar access:** check Core's iOS full calendar permission, its enabled calendar list, and the custom app's Calendar permission; refresh afterward. Core may return an empty list when OS permission is missing, which cannot be distinguished from no available events by this provider alone.
 - **Sync failed/offline:** check watch connection, open Core, then Double Select → Refresh. Cached data stays visibly marked.
 - **RAM only:** firmware storage is too small or a cache write failed; the current list works until exit but may not survive restarting. Current emery SDK supplies `persist_get_max_size`; this MVP is intended for current firmware.
-- **Demo data after installation:** install the live `dist/pebble-calendar.pbw`; the demo is a separate explicitly named build.
+- **Attendees missing:** Core's plugin does not expose them. Native Timeline uses a separate synchronization path that includes attendee text. An upstream plugin extension is required for live attendee lists and rooms found only in attendee resources.
+- **Demo data after installation:** install the live `dist/pebble-calendar.pbw`, named PebbleCal; the demo is a separate explicitly named build.
 - **SDK/editor issues:** use `./scripts/pebble.sh --version`; install an emery-capable SDK; avoid mixing `.tools` with another repository's virtual environment. In sandboxed cloud execution, emulator commands need local socket permission. STPyV8 requires ICU data in its standard per-user cache; this was prepared separately in the development environment.
 
 See [architecture](docs/architecture.md) and [development references](docs/references.md). Future work includes an official bounded date-range provider with stable occurrence IDs, coverage/pagination and cancellation metadata. No CI/CD or additional hosting is introduced.

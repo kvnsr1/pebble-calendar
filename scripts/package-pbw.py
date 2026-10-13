@@ -14,7 +14,7 @@ info['manifestVersion'] = 2
 info['usesPermissions'] = ['Calendar']
 demo = os.environ.get('CALENDAR_DEMO') == '1'
 if demo:
-    info['shortName'] = info['longName'] = 'Calendar Demo'
+    info['shortName'] = info['longName'] = 'PebbleCal Demo'
 temporary = pbw.with_suffix('.tmp')
 with zipfile.ZipFile(temporary, 'w', zipfile.ZIP_DEFLATED) as archive:
     for entry, data in entries:

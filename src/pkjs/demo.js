@@ -13,7 +13,13 @@ require('./bridge')(Pebble, function(onData) {
     { title: 'Project catch-up', start: seconds + 600, end: seconds + 2700, flags: 0, calendar: 'Work', location: 'Conference room' },
     { title: 'An evening walk with friends', start: at(1, 17, 30), end: at(1, 18, 30), flags: 0, calendar: 'Personal', location: 'Riverside park' },
     { title: 'Overnight maintenance window', start: at(2, 23, 30), end: at(3, 1), flags: 0, calendar: 'Work', location: '' }
-  ].sort(function(a, b) { return a.start - b.start; });
+  ].map(function(event) {
+    var attendees = event.title === 'Design review' ? [
+      'Alex Sample', 'Jordan Sample',
+      'ABC | 1000 MB2-3rd-3.07 Example Room (8) [Team Room, Video]'
+    ] : event.title === 'Project catch-up' ? ['Alex Sample', 'Casey Sample'] : [];
+    return source.enrich(event, attendees, true, false);
+  }).sort(function(a, b) { return a.start - b.start; });
   onData({ events: events, updated: seconds, demo: true });
   return { unsubscribe: function() {} };
 });
