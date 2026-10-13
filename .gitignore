@@ -1,0 +1,8 @@
+.tools/
+node_modules/
+build/
+.lock-waf*
+__pycache__/
+test-output/
+dist/
+.DS_Store
