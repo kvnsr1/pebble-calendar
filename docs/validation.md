@@ -25,3 +25,14 @@ The emulator caught a platform constraint during development: apps cannot overri
 - Battery measurement, real-device firmware storage limits and extended runtime testing.
 
 Follow [the device checklist](device-validation.md) for those checks. Do not interpret emery emulator success as certification of real calendar access or complete daily coverage.
+
+## Version 0.3 attendee integration — 2026-10-14
+
+- All 27 Node tests and the host C suite passed. New contract tests cover compatible declaration discovery, older/wrong providers, people and room extraction from the advertised live field, facilities commas, missing versus empty metadata, malformed replacements, and participant/room changes and deletions.
+- Live and synthetic demo emery builds succeeded. Live RAM footprint remains 37,997 bytes; resources remain 4,237 bytes. No native UI/cache schema changed from 0.2.
+- Both PBWs were inspected: version 0.3.0, emery target, manifest version 2, Calendar permission only. The live bundle contains the capability check and no fictional demo attendee names. SHA-256 checksums are generated in `dist/SHA256SUMS`.
+- The Core patch, including five synthetic common tests, applied to a clean worktree at `ec2156cc38a850e5458addba2a2fb8efa34396df`. Reapplying the helper script correctly reported that the patch was already applied.
+- Core's targeted JVM suite passed: four existing Calendar plugin tests and five new attendee tests, with no failures/errors. The production shared library and its test sources compiled. Linux validation used a portable Java 17 toolchain, workspace-local Gradle/Android/Kotlin Native caches, `--configure-on-demand`, and `-Pkotlin.mpp.enableCInteropCommonization=false`. Ordinary whole-project configuration still requires an Android SDK; no application build configuration was modified to obtain the targeted test result.
+- Version 0.3 installed successfully on the physical watch through the cloud Developer Connection. The first attempt authenticated but timed out waiting for the phone; the retry connected and reported “App install succeeded.” No live calendar content or watch screenshots were retrieved. Official Core 1.15.0.1 still cannot supply attendees through the plugin.
+
+The Core patch is a proposed interface, not an official release. iOS compilation/signing, actual EventKit attendee delivery and Timeline coexistence still require verification. This workspace is Linux and has no Xcode/iPhone signing environment; the user confirmed no Mac is available. No real attendee data was read and no upstream issue or PR was posted.

@@ -1,0 +1,223 @@
+diff --git a/libpebble3/src/commonMain/kotlin/io/rebble/libpebblecommon/plugin/CalendarPlugin.kt b/libpebble3/src/commonMain/kotlin/io/rebble/libpebblecommon/plugin/CalendarPlugin.kt
+index 1811659..73dabbd 100644
+--- a/libpebble3/src/commonMain/kotlin/io/rebble/libpebblecommon/plugin/CalendarPlugin.kt
++++ b/libpebble3/src/commonMain/kotlin/io/rebble/libpebblecommon/plugin/CalendarPlugin.kt
+@@ -50,6 +50,7 @@ class CalendarPlugin(
+                     listOf(SourceShapeNames.SHORT_TEXT, SourceShapeNames.TIMESTAMP),
+                 PROPERTY_ALL_DAY to listOf(SourceShapeNames.BOOLEAN),
+                 PROPERTY_CALENDAR to listOf(SourceShapeNames.SHORT_TEXT),
++                PROPERTY_ATTENDEES to listOf(SourceShapeNames.LONG_TEXT),
+             ),
+             supportsMultiple = true,
+             // Nobody grants the calendar to the calendar: this plugin is the root of the data,
+@@ -71,7 +72,7 @@ class CalendarPlugin(
+         // Events fall out of the window with the passage of time alone, so a change signal isn't
+         // enough on its own to keep "the next event" true.
+         return combine(calendarDao.getFlow(), merge(tick(REFRESH_INTERVAL), changes)) { cals, _ ->
+-            toEnvelope(load(cals))
++            toEnvelope(load(cals), properties == null || PROPERTY_ATTENDEES in properties)
+         }.distinctUntilChanged()
+     }
+ 
+@@ -87,13 +88,13 @@ class CalendarPlugin(
+             .upcoming(now, MAX_EVENTS)
+     }
+ 
+-    private fun toEnvelope(events: List<EventInCalendar>) = SourceEnvelope(
++    private fun toEnvelope(events: List<EventInCalendar>, includeAttendees: Boolean) = SourceEnvelope(
+         pluginUuid = pluginUuid.toString(),
+         validUntilMs = null,
+-        instances = events.mapIndexed { index, event -> toInstance(index, event) },
++        instances = events.mapIndexed { index, event -> toInstance(index, event, includeAttendees) },
+     )
+ 
+-    private fun toInstance(index: Int, entry: EventInCalendar): SourceInstance {
++    private fun toInstance(index: Int, entry: EventInCalendar, includeAttendees: Boolean): SourceInstance {
+         val event = entry.event
+         val startsAt = if (event.allDay) ALL_DAY_LABEL else event.startTime.localTime()
+         return SourceInstance(
+@@ -135,6 +136,19 @@ class CalendarPlugin(
+                         SourceShapeNames.SHORT_TEXT to encode(ShortTextShape(entry.calendarName)),
+                     ),
+                 )
++                if (includeAttendees) {
++                    // One display name per line, including room/resource participants. Never
++                    // substitute email addresses; normalize embedded line breaks so the list
++                    // remains unambiguous. An empty string means no display names were supplied.
++                    val names = event.attendees.mapNotNull { attendee ->
++                        attendee.name?.replace(Regex("[\\r\\n]+"), " ")?.trim()
++                            ?.takeIf { it.isNotEmpty() }
++                    }.joinToString("\n")
++                    put(
++                        PROPERTY_ATTENDEES,
++                        mapOf(SourceShapeNames.LONG_TEXT to encode(LongTextShape(names))),
++                    )
++                }
+             },
+         )
+     }
+@@ -161,6 +175,8 @@ class CalendarPlugin(
+         const val PROPERTY_ENDS_AT = "ends_at"
+         const val PROPERTY_ALL_DAY = "all_day"
+         const val PROPERTY_CALENDAR = "calendar"
++        /** [LongTextShape] with one attendee display name per line; empty if none are available. */
++        const val PROPERTY_ATTENDEES = "attendees"
+ 
+         private const val ALL_DAY_LABEL = "All day"
+         private const val MAX_EVENTS = 10
+diff --git a/libpebble3/src/commonTest/kotlin/io/rebble/libpebblecommon/plugin/CalendarPluginAttendeesTest.kt b/libpebble3/src/commonTest/kotlin/io/rebble/libpebblecommon/plugin/CalendarPluginAttendeesTest.kt
+new file mode 100644
+index 0000000..d00001d
+--- /dev/null
++++ b/libpebble3/src/commonTest/kotlin/io/rebble/libpebblecommon/plugin/CalendarPluginAttendeesTest.kt
+@@ -0,0 +1,121 @@
++package io.rebble.libpebblecommon.plugin
++
++import io.rebble.libpebblecommon.calendar.CalendarEvent
++import io.rebble.libpebblecommon.calendar.EventAttendee
++import io.rebble.libpebblecommon.calendar.NewCalendarEvent
++import io.rebble.libpebblecommon.calendar.SystemCalendar
++import io.rebble.libpebblecommon.connection.endpointmanager.blobdb.TimeProvider
++import io.rebble.libpebblecommon.database.dao.CalendarDao
++import io.rebble.libpebblecommon.database.entity.CalendarEntity
++import kotlinx.coroutines.flow.Flow
++import kotlinx.coroutines.flow.first
++import kotlinx.coroutines.flow.flowOf
++import kotlinx.coroutines.test.runTest
++import kotlinx.serialization.json.Json
++import kotlin.test.Test
++import kotlin.test.assertEquals
++import kotlin.test.assertFalse
++import kotlin.test.assertNull
++import kotlin.time.Duration.Companion.hours
++import kotlin.time.Instant
++
++private const val ROOM = "ABC | 1000 MB2-3rd-3.07 Example Room (8) [Team Room, Video]"
++
++private fun attendee(name: String?, email: String? = null) = EventAttendee(
++    name = name, email = email, role = null, attendanceStatus = null,
++)
++
++private class CalendarFixture : SystemCalendar, CalendarDao, TimeProvider {
++    var permitted = true
++    var reads = 0
++    var calendars = listOf(CalendarEntity(
++        platformId = "synthetic", name = "Test calendar", ownerName = "Test", ownerId = "test",
++        color = 0, enabled = true,
++    ))
++    var event = CalendarEvent(
++        id = "synthetic", calendarId = "synthetic", title = "Synthetic meeting", description = "",
++        location = null, startTime = now() + 1.hours, endTime = now() + 2.hours, allDay = false,
++        attendees = emptyList(), recurs = false, reminders = emptyList(),
++        availability = CalendarEvent.Availability.Busy, status = CalendarEvent.Status.Confirmed,
++        baseEventId = "synthetic",
++    )
++    val plugin = CalendarPlugin(this, this, this)
++
++    override fun now() = Instant.fromEpochSeconds(1_700_000_000)
++    override fun hasPermission() = permitted
++    override suspend fun getCalendars() = calendars
++    override suspend fun getCalendarEvents(calendar: CalendarEntity, startDate: Instant, endDate: Instant): List<CalendarEvent> {
++        reads++
++        return listOf(event)
++    }
++    override fun registerForCalendarChanges(): Flow<Unit>? = null
++    override suspend fun enableSyncForCalendar(calendar: CalendarEntity) = error("Unused")
++    override suspend fun createEvent(calendarId: String, event: NewCalendarEvent): String? = error("Unused")
++    override suspend fun defaultCalendarPlatformId(): String? = error("Unused")
++    override fun supportsPinActions() = false
++    override fun getFlow() = flowOf(calendars)
++    override suspend fun getAll() = calendars
++    override suspend fun insertOrReplace(calendar: CalendarEntity) = error("Unused")
++    override suspend fun update(calendar: CalendarEntity) = error("Unused")
++    override suspend fun delete(calendar: CalendarEntity) = error("Unused")
++    override suspend fun setEnabled(calendarId: Int, enabled: Boolean) = error("Unused")
++
++    suspend fun envelope(properties: List<String>? = listOf(CalendarPlugin.PROPERTY_ATTENDEES)) =
++        plugin.observe(CalendarPlugin.CATEGORY, CalendarPlugin.ITEM_EVENT, properties).first()
++}
++
++private fun SourceInstance.attendeeText(): String? =
++    properties[CalendarPlugin.PROPERTY_ATTENDEES]?.get(SourceShapeNames.LONG_TEXT)?.let {
++        Json.decodeFromJsonElement(LongTextShape.serializer(), it).text
++    }
++
++class CalendarPluginAttendeesTest {
++    @Test
++    fun declarationUsesExistingTextShapeAndCalendarPermission() {
++        val declaration = CalendarFixture().plugin.sources.single()
++        assertEquals(listOf(SourceShapeNames.LONG_TEXT), declaration.properties[CalendarPlugin.PROPERTY_ATTENDEES])
++        assertEquals(listOf(PluginPermission(PluginPermissions.CALENDAR)), declaration.callerPermissions)
++    }
++
++    @Test
++    fun namesAndRoomResourcesRemainSeparateLinesWithoutEmails() = runTest {
++        val fixture = CalendarFixture()
++        fixture.event = fixture.event.copy(attendees = listOf(
++            attendee(" Alex Sample ", "alex@example.invalid"), attendee(ROOM),
++            attendee("Jordan\r\nSample"), attendee(null, "private@example.invalid"), attendee("  "),
++        ))
++        val envelope = fixture.envelope()
++        assertEquals("Alex Sample\n$ROOM\nJordan Sample", envelope.instances.single().attendeeText())
++        assertEquals(1, fixture.reads)
++        assertFalse(Json.encodeToString(SourceEnvelope.serializer(), envelope).contains("example.invalid"))
++    }
++
++    @Test
++    fun emptyListIsPresentButSubscribersWithoutAttendeesReceiveNoList() = runTest {
++        val fixture = CalendarFixture()
++        assertEquals("", fixture.envelope().instances.single().attendeeText())
++        fixture.event = fixture.event.copy(attendees = listOf(attendee("Alex Sample")))
++        assertNull(fixture.envelope(listOf(SourceInstance.PROPERTY_NAME)).instances.single().attendeeText())
++        assertEquals("Alex Sample", fixture.envelope(null).instances.single().attendeeText())
++    }
++
++    @Test
++    fun attendeeUpdatesReplaceEarlierNames() = runTest {
++        val fixture = CalendarFixture()
++        fixture.event = fixture.event.copy(attendees = listOf(attendee("Alex Sample"), attendee(ROOM)))
++        assertEquals("Alex Sample\n$ROOM", fixture.envelope().instances.single().attendeeText())
++        fixture.event = fixture.event.copy(attendees = listOf(attendee("Jordan Sample")))
++        assertEquals("Jordan Sample", fixture.envelope().instances.single().attendeeText())
++    }
++
++    @Test
++    fun deniedPermissionAndDisabledCalendarsDoNotReadEvents() = runTest {
++        val fixture = CalendarFixture()
++        fixture.permitted = false
++        assertEquals(emptyList(), fixture.envelope().instances)
++        fixture.permitted = true
++        fixture.calendars = fixture.calendars.map { it.copy(enabled = false) }
++        assertEquals(emptyList(), fixture.envelope().instances)
++        assertEquals(0, fixture.reads)
++    }
++}
+diff --git a/test-apps/plugins.md b/test-apps/plugins.md
+index d64289b..43c5434 100644
+--- a/test-apps/plugins.md
++++ b/test-apps/plugins.md
+@@ -116,6 +116,24 @@ The built-in Watch State plugin has no sources, only actions, both needing `Laun
+ `launch_app` (`{ uuid }`) opens an app or watchface in the user's locker, and
+ `launch_previous_app` goes back to whatever ran before the current app.
+ 
++## Built-in Calendar source
++
++The built-in `calendar/event` source uses the phone's native calendar reader and the calendars
++enabled in the mobile app. It requires the caller's `Calendar` permission and returns up to ten
++upcoming events in the next seven days. Its event IDs are positions in that list; treat an envelope
++as a complete replacement rather than merging events by ID.
++
++The `attendees` property offers `longText` with **one participant display name per newline**,
++including room/resource participants. Names are trimmed, embedded CR/LF is replaced with a space,
++and missing/blank names are omitted. Commas remain inside names; do not split on them. Email
++addresses are not substituted. An empty string means no usable display names were supplied by
++the native reader, not proof that the event has no participants.
++
++This field is included when requested in `properties`, or when `properties` is null (all fields).
++Older mobile app releases omit it. Discover `attendees: ["longText"]` in the source declaration
++using `Pebble.enumeratePlugins()` before requesting it, and check for a missing property when
++reading. It uses the existing calendar reader and permission; no separate calendar login is needed.
++
+ ## Shapes
+ 
+ A property isn't typed as "a number" or "a string". It offers one or more **shapes**: fixed types

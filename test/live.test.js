@@ -30,10 +30,42 @@ test('live source uses the built-in calendar contract and validates every return
   assert.equal(configuration.category, 'calendar'); assert.equal(configuration.item, 'event');
   assert.equal(configuration.plugin, source.BUILTIN_UUID);
   assert.ok(configuration.properties.includes('calendar'));
+  assert.equal(configuration.properties.includes('attendees'), false);
   configuration.onData({ pluginUuid: 'fallback', instances: [] });
   assert.deepEqual(result.errors, ['INVALID_DATA']); assert.equal(result.data.length, 0);
   configuration.onData({ pluginUuid: source.BUILTIN_UUID, instances: [] });
   assert.equal(result.data.length, 1); assert.deepEqual(result.data[0].events, []);
   configuration.onError({ code: 'PERMISSION_DENIED', message: 'Do not copy this private detail' });
   assert.deepEqual(result.errors, ['INVALID_DATA', 'PERMISSION_DENIED']);
+});
+
+test('live source requests attendee names only from an advertised compatible Calendar source', function() {
+  var configuration;
+  var declarations = [
+    { category: 'other', items: ['event'], properties: { attendees: ['longText'] } },
+    { category: 'calendar', items: ['event'], properties: { attendees: ['longText'] } }
+  ];
+  var result = read({ enumeratePlugins: function() { return [{ uuid: source.BUILTIN_UUID, sources: declarations }]; },
+    subscribeToSource: function(config) { configuration = config; return {}; } });
+  assert.ok(configuration.properties.includes('attendees'));
+  configuration.onData({ pluginUuid: source.BUILTIN_UUID, instances: [{ properties: {
+    name: { longText: { text: 'Synthetic review' } }, starts_at: { timestamp: { value: 1900000000 } },
+    ends_at: { timestamp: { value: 1900003600 } }, all_day: { boolean: { value: false } },
+    attendees: { longText: { text: 'Alex Sample\nABC | MB2-3rd-3.07 Example Room (8) [Team Room, Video]' } }
+  } }] });
+  assert.deepEqual(result.errors, []);
+  assert.equal(result.data[0].events[0].attendees, 'Alex Sample');
+  assert.equal(result.data[0].events[0].room.source, 1);
+});
+test('wrong source or attendee shape cannot enable an unadvertised extension', function() {
+  [
+    { category: 'other', items: ['event'], properties: { attendees: ['longText'] } },
+    { category: 'calendar', items: ['other'], properties: { attendees: ['longText'] } },
+    { category: 'calendar', items: ['event'], properties: { attendees: ['shortText'] } }
+  ].forEach(function(declaration) {
+    var configuration;
+    read({ enumeratePlugins: function() { return [{ uuid: source.BUILTIN_UUID, sources: [declaration] }]; },
+      subscribeToSource: function(config) { configuration = config; return {}; } });
+    assert.equal(configuration.properties.includes('attendees'), false);
+  });
 });

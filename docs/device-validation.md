@@ -15,4 +15,15 @@ Use harmless synthetic test events in an authorized calendar before checking act
 9. Double Select → Clear cache → Clear now. Confirm it clears and stays cleared until Refresh during that session. Reopening intentionally requests events again.
 10. Confirm native Timeline still synchronizes while this app uses the shared calendar reader. Test app reopening after a phone/watch restart.
 
+## Enhanced Core attendee checks
+
+These require a signed Core build containing [the attendee patch](../integrations/core-calendar/README.md), or an official release adopting that contract, and PebbleCal 0.3. The official Core 1.15.0.1 installation cannot perform these checks.
+
+1. Confirm the companion advertises `calendar/event` property `attendees: ["longText"]`. Reopen PebbleCal after changing companion builds, so provider discovery runs again.
+2. Use synthetic attendee names and a fictional room resource in a test event. Confirm the attendee section lists people, the room section shows the resource fields, and its source reads “From room attendee.” Confirm a conflicting Location does not override the resource attendee.
+3. Check a synthetic event without usable attendee names. The UI should distinguish the supplied empty list from “Not provided by phone”; neither wording proves there are no participants hidden by the calendar provider.
+4. Change and remove attendees and the room; refresh and verify the entire snapshot replaces old people/room data. Disconnect to confirm the bounded cached snapshot remains readable, then clear it.
+5. Revoke PebbleCal's Calendar grant and verify the cached data clears on denial. Check native Timeline still updates, and repeat while Core is foregrounded versus suspended. No new background guarantee is introduced.
+6. Return to official Core, reconnect as needed and reopen PebbleCal. Verify the ordinary agenda works and newly received records return to unavailable attendee metadata.
+
 Automated native tests cover DST transitions with synthetic dates; physical time-zone changes and background delivery are separate checks. Document results as counts/pass/fail/status only. Corporate calendar availability in Timeline does not itself authorize new retention or exporting it elsewhere.

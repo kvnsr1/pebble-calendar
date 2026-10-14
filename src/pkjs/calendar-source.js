@@ -61,7 +61,7 @@ function enrich(event, attendees, attendeesAvailable, allowLocationFallback) {
   return result;
 }
 
-function normalize(envelope, now) {
+function normalize(envelope, now, attendeesSupported) {
   if (!envelope || envelope.pluginUuid !== BUILTIN_UUID || !Array.isArray(envelope.instances) || envelope.instances.length > MAX_EVENTS) {
     throw new Error('INVALID_DATA');
   }
@@ -70,9 +70,18 @@ function normalize(envelope, now) {
     if (!p || !p.all_day || !p.all_day.boolean || typeof p.all_day.boolean.value !== 'boolean') throw new Error('INVALID_DATA');
     var start = timestamp(p.starts_at), end = timestamp(p.ends_at);
     if (end <= start) throw new Error('INVALID_DATA');
-    // Core 1.15 does not expose attendees. Do not invent a schema or copy hidden EventKit data.
+    var names = [], available = false;
+    if (attendeesSupported === true && Object.prototype.hasOwnProperty.call(p, 'attendees')) {
+      if (!p.attendees || !p.attendees.longText || typeof p.attendees.longText.text !== 'string') {
+        throw new Error('INVALID_DATA');
+      }
+      // The Core enhancement declares longText with one display name per line. Never split
+      // on commas: room resources contain commas in their facilities list.
+      names = p.attendees.longText.text.split('\n');
+      available = true;
+    }
     return enrich({ title: text(p.name).trim() || 'Untitled event', location: text(p.location),
-      calendar: text(p.calendar), start: start, end: end, flags: p.all_day.boolean.value ? FLAGS.ALL_DAY : 0 }, [], false, true);
+      calendar: text(p.calendar), start: start, end: end, flags: p.all_day.boolean.value ? FLAGS.ALL_DAY : 0 }, names, available, true);
   }).sort(function(a, b) { return a.start - b.start || a.title.localeCompare(b.title); });
   // A complete source envelope is the unit of replacement. Never merge positional IDs.
   return { events: events, updated: Math.floor(now / 1000), demo: false };

@@ -53,3 +53,40 @@ test('missing optional strings are allowed and notes never enter the watch paylo
 });
 
 module.exports = { instance: instance, envelope: envelope };
+
+test('extended Core attendees reach people and room fields without splitting facilities commas', function() {
+  var item = instance('Synthetic review', 1900000000, 1900003600);
+  item.properties.attendees = { longText: { text: 'Alex Sample\nABC | 1000 MB2-3rd-3.07 Example Room (8) [Team Room, Video]\nJordan Sample' } };
+  var event = source.normalize(envelope([item]), 1900000000000, true).events[0];
+  assert.equal(event.attendees, 'Alex Sample\nJordan Sample');
+  assert.ok(event.flags & source.FLAGS.ATTENDEES_AVAILABLE);
+  assert.equal(event.room.source, 1); assert.equal(event.room.facilities, 'Team Room, Video');
+  var frame = source.messages({ events: [event], updated: 1900000000 }, 1, 2)[1];
+  assert.equal(frame.ATTENDEES, 'Alex Sample\nJordan Sample');
+  assert.equal(frame.ROOM_NUMBER, '7'); assert.equal(frame.CAPACITY, 8);
+});
+test('missing attendee support stays unknown while a supplied empty list is explicitly available', function() {
+  var item = instance('Synthetic meeting', 1900000000, 1900003600);
+  assert.equal(source.normalize(envelope([item]), Date.now(), true).events[0].flags & source.FLAGS.ATTENDEES_AVAILABLE, 0);
+  item.properties.attendees = { longText: { text: '' } };
+  assert.ok(source.normalize(envelope([item]), Date.now(), true).events[0].flags & source.FLAGS.ATTENDEES_AVAILABLE);
+  item.properties.attendees = { longText: { text: 'Unadvertised Sample' } };
+  assert.equal(source.normalize(envelope([item]), Date.now(), false).events[0].attendees, '');
+});
+test('malformed advertised attendee payload rejects the whole replacement', function() {
+  [null, {}, { shortText: { text: 'Wrong shape' } }, { longText: { text: [] } }].forEach(function(payload) {
+    var item = instance('Synthetic meeting', 1900000000, 1900003600);
+    item.properties.attendees = payload;
+    assert.throws(function() { source.normalize(envelope([item]), Date.now(), true); }, /INVALID_DATA/);
+  });
+});
+test('attendee updates and deletions replace people and room metadata', function() {
+  var item = instance('Synthetic meeting', 1900000000, 1900003600);
+  item.properties.attendees = { longText: { text: 'Alex Sample\nABC | MB2-3rd-3.07 Example Room (8)' } };
+  assert.equal(source.normalize(envelope([item]), Date.now(), true).events[0].room.source, 1);
+  item.properties.attendees.longText.text = 'Jordan Sample';
+  var updated = source.normalize(envelope([item]), Date.now(), true).events[0];
+  assert.equal(updated.attendees, 'Jordan Sample'); assert.equal(updated.room, null);
+  item.properties.attendees.longText.text = '';
+  assert.equal(source.normalize(envelope([item]), Date.now(), true).events[0].attendees, '');
+});

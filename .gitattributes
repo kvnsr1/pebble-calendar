@@ -1,0 +1,2 @@
+# Unified diffs require a literal space on blank context lines.
+integrations/core-calendar/*.patch whitespace=-blank-at-eol

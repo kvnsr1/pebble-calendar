@@ -1,6 +1,6 @@
 # PebbleCal
 
-A native month calendar and button-driven **upcoming agenda** for Pebble Time 2 (`emery`). It reads the calendars already enabled in Pebble Core through the built-in experimental Calendar plugin. No Google login, ICS link, hosted settings page, backend, separate iPhone app, or modified Core app is needed.
+A native month calendar and button-driven **upcoming agenda** for Pebble Time 2 (`emery`). It reads the calendars already enabled in Pebble Core through the built-in experimental Calendar plugin. The basic agenda works with unmodified Core. Optional attendee support uses the Core enhancement below. Calendar data stays on your phone and watch, with no Google login, ICS link, hosted settings page, backend or separate iPhone app.
 
 **Current provider limit: the next 10 events across all enabled calendars, within seven days. Completed events are excluded. This is not a complete daily agenda.** A day with no displayed events means none were in the received list, not that your calendar is free.
 
@@ -8,7 +8,9 @@ Synthetic emulator previews (no real calendar data):
 
 ![Demo calendar](docs/screenshots/month-demo.png) ![Demo event details](docs/screenshots/details-demo.png)
 
-The detail screen has separate Event Name, Start Time, End Time, Room, Attendee List and Calendar sections. **Core's current Calendar plugin does not expose attendees** even though native Timeline can show them. Live attendee lists therefore say “Not provided by phone.” PebbleCal parses room resources from attendees when supplied to its adapter, and uses a matching event Location string as a labeled fallback. It does not read Timeline pins or modify Core to obtain missing fields.
+The detail screen has separate Event Name, Start Time, End Time, Room, Attendee List and Calendar sections. **Official Core 1.15.0.1 does not expose attendees** even though native Timeline can show them. PebbleCal 0.3 automatically requests attendee names when an enhanced Core plugin advertises support, separates room resources from people, and extracts office, building, floor/room, name and capacity. With the current official release, attendees still say “Not provided by phone”; matching event Location text remains a labeled room fallback.
+
+A reviewable [Core Calendar enhancement](integrations/core-calendar/README.md) reuses the existing native reader and permissions. It includes source changes, synthetic Core tests and Mac/iPhone build instructions. Installing the PBW alone cannot activate it; attendee support requires a Core build containing that patch or a future official release adopting the contract. It has not been submitted upstream or verified on iPhone.
 
 The room format is `OFFICE | address BUILDING-floorOrdinal-floor.room Room Name (capacity) [facilities]`. The parser extracts office, building, floor, room number, name, capacity and optional facilities, checks that both floor identifiers agree, and separates resource attendees from people. Numeric room numbers drop leading zeroes. The room card identifies whether the source was an attendee or Location. Unrecognized locations remain visible as ordinary text; no office/floor/capacity is guessed.
 
