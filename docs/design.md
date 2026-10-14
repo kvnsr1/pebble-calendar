@@ -1,4 +1,4 @@
-# PebbleCal 0.4 design
+# PebbleCal 0.5 design
 
 Reviewed 2026-10-14 against Pebble's live developer guides and the official documentation source at [coredevices/sdk-docs](https://github.com/coredevices/sdk-docs/tree/a9641e4db0426a026151f6d689255ea724904800). Research checkouts are separate from this application and from Flight/Transit. The original attendee integration is retained.
 
@@ -6,18 +6,24 @@ Reviewed 2026-10-14 against Pebble's live developer guides and the official docu
 
 | Pebble guidance | PebbleCal implementation |
 | --- | --- |
-| Prioritize the app's main purpose and quick access | Open today's received agenda immediately. Calendar browsing is one visible menu action away. |
-| Familiar menu navigation and clear actions | Native MenuLayer for events; native ActionMenu for date navigation, refresh and clearing. A visible Calendar & options row and detail ellipsis avoid requiring double clicks. |
-| Back leaves the current window | Separate agenda, calendar, detail and confirmation windows. Back from calendar cancels browsing; Select applies the chosen date. |
+| Prioritize the app's main purpose and quick access | Open today's overview. Up/Down browse dates; Select opens the received event list; held Select opens calendar/options. |
+| Familiar menu navigation and clear actions | Native MenuLayer for events; native ActionMenu for date navigation, refresh and clearing. A visible Calendar & options list row, held Select on the overview and the detail Select indent expose options. |
+| Back leaves the current window | Separate day overview, event list, calendar, detail and confirmation windows. Back from calendar cancels browsing; Select applies the chosen date. |
 | Large type and clear hierarchy | Size 28 date/title headings, size 24 agenda titles, size 18 body/labels. Extra-large content size uses size 24 bodies and size 28 event titles, with stacked time fields. |
-| Few purposeful colors | White background, black primary information and cobalt selection/labels; NOW/NEXT text conveys event state without relying only on color. |
-| Make overflow and additional actions apparent | ScrollLayer with a reserved bottom indicator strip, familiar up/down icons and an ellipsis Select action. Titles wrap fully in details. |
-| Use the status bar when current time helps | Native clock on agenda, calendar and detail screens. Its width excludes the action bar in details. |
-| Give feedback without unnecessary distraction | Native menu/window/scroll transitions and action-bar press feedback. No new animation loop or vibration on routine navigation. |
+| Few purposeful colors | Dark Oxford Blue headers with white titles, white body, black primary information and cobalt selection/labels; NOW/NEXT text conveys event state without relying only on color. |
+| Make overflow and additional actions apparent | Full-width ScrollLayer with a reserved bottom indicator strip and a small Select indent instead of a fixed navigation bar. Titles wrap fully in details. |
+| Use the status bar when current time helps | Native clock on agenda, calendar and detail screens. The clock and detail page use the full screen width. |
+| Give feedback without unnecessary distraction | Native menu/window/scroll transitions. No new animation loop or vibration on routine navigation. |
 | Clear feedback and confirmation for destructive actions | A bold confirmation dialog explains that clearing removes this watch's saved copy. Select confirms; Back cancels. |
 | Cache data and explain connection failures | Existing bounded cache/expiry remains intact. Saved/offline states and incomplete upcoming coverage remain visible. |
 
 The calendar keeps a Monday-first seven-column grid with size 18 day numbers, a filled selection, outlined today and dots only for received events. It uses actual display bounds rather than a hardcoded resolution. The rectangular emery target is the supported platform; reading round-design guidance does not imply a round-watch build was tested.
+
+## Timeline layout reference
+
+The 0.5 revision follows the user's native Timeline screenshot without retaining its event content. Source inspection also confirmed the layout in [calendar_layout.c](https://github.com/coredevices/PebbleOS/blob/8bbd9407edc63198e39c1996f866af6e2be3ef96/fw/services/timeline/calendar_layout.c), the Select affordance in [action_button.c](https://github.com/coredevices/PebbleOS/blob/8bbd9407edc63198e39c1996f866af6e2be3ef96/fw/applib/ui/action_button.c), and its use in [pin_window.c](https://github.com/coredevices/PebbleOS/blob/8bbd9407edc63198e39c1996f866af6e2be3ef96/fw/apps/system/timeline/pin_window.c). These internal firmware components are references, not callable SDK APIs or dependencies. PebbleCal draws its own date icon, triangle/square start/end markers and a 13-pixel black Select circle centered four pixels outside the screen using public SDK primitives.
+
+The overview has no MenuLayer competing for its buttons or drawing over the footer. Its body is bounded between the measured header and footer; long preview titles use ellipsis, while full detail titles wrap and scroll. The event list is a separate native menu window with focused rows centered so their calendar source is not cut off. Detail text reserves a small right margin for the indent, preserving substantially more width than an ActionBarLayer. No additional timer, phone request or persistent copy was introduced for date browsing.
 
 ## Guide pages and nested resources accessed
 
@@ -56,4 +62,4 @@ Repositories were cloned for source inspection; they are research references, no
 
 ## Assets and licensing
 
-Four unmodified action PNGs (up, down, ellipsis, check) come from [the official documentation assets](https://github.com/coredevices/sdk-docs/tree/a9641e4db0426a026151f6d689255ea724904800/source/assets/images/guides/design-and-interaction/icons), offered under the repository's Apache 2.0 license. They are stored in `resources/images/pebble`. The [license copy](licenses/pebble-sdk-docs-Apache-2.0.txt) is included. The original launcher icon remains independently authored. Example C implementations were references; no example module is bundled into the app. All preview calendar data is fictional.
+Four unmodified action PNGs (up, down, ellipsis, check) come from [the official documentation assets](https://github.com/coredevices/sdk-docs/tree/a9641e4db0426a026151f6d689255ea724904800/source/assets/images/guides/design-and-interaction/icons), offered under the repository's Apache 2.0 license. They are stored in `resources/images/pebble`. The [license copy](licenses/pebble-sdk-docs-Apache-2.0.txt) is included. Only the confirmation check is packaged in version 0.5; the other three reference icons no longer consume watch resources. The original launcher icon and primitive calendar glyph remain independently authored. Example C implementations were references; no example module is bundled into the app. All preview calendar data is fictional.

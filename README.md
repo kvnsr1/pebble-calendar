@@ -6,7 +6,7 @@ A native agenda and month calendar for Pebble Time 2 (`emery`). It reads the cal
 
 Synthetic emulator previews (no real calendar data):
 
-![Demo agenda](docs/screenshots/agenda-demo.png) ![Demo event details](docs/screenshots/details-demo.png)
+![Demo day overview](docs/screenshots/home-demo.png) ![Demo agenda](docs/screenshots/agenda-demo.png) ![Demo event details](docs/screenshots/details-demo.png)
 
 The detail screen has separate Event Name, Start Time, End Time, Room, Attendee List and Calendar sections. **Official Core 1.15.0.1 does not expose attendees** even though native Timeline can show them. PebbleCal 0.3 and later automatically request attendee names when an enhanced Core plugin advertises support, separates room resources from people, and extracts office, building, floor/room, name and capacity. With the current official release, attendees still say “Not provided by phone”; matching event Location text remains a labeled room fallback.
 
@@ -25,19 +25,21 @@ The app declares only the `Calendar` permission in a version-2 app manifest. If 
 
 ## Controls
 
-PebbleCal opens to **today's agenda**. The native menu's first row is **Calendar & options**; events follow in chronological order. Press Up to reach that row if it is above the selected event.
+PebbleCal opens to **today's day overview** with a dark date header, received-event count and a preview. Up and Down change dates directly. Select opens that day's event list; on an empty day it opens options. Hold Select for options from any day. A day with no received events is not confirmation that the calendar is empty.
 
-| Button | Agenda | Month calendar | Event details |
-| --- | --- | --- | --- |
-| Up / Down | Previous / next menu item | Previous / next date | Scroll content |
-| Select | Open options or selected event | Open the selected day's agenda | Open options (ellipsis icon) |
-| Back | Exit the app | Cancel browsing and return to agenda | Return to agenda |
-| Hold Up / Down | Native menu repeat | Previous / next month | Native scroll repeat |
-| Hold Select | Options shortcut | Options shortcut | — |
+| Button | Day overview | Event list | Month calendar | Event details |
+| --- | --- | --- | --- | --- |
+| Up / Down | Previous / next day | Previous / next item | Previous / next date | Scroll content |
+| Select | Open day agenda or empty-day options | Open selected event or Calendar & options | Use selected date | Open options (right-edge indent) |
+| Back | Exit the app | Return to day overview | Cancel browsing | Return to event list |
+| Hold Up / Down | Repeat date navigation | Native menu repeat | Previous / next month | Native scroll repeat |
+| Hold Select | Options | Options | Options | — |
+
+Event details use a full-width dark header: a date icon and start/end markers above the complete wrapped event title. A small black indent at the Select button replaces the fixed action bar. Room/location follows the title; expanded start/end dates, attendees and calendar remain scrollable below. The bottom arrow indicates more content.
 
 The native action menu offers Calendar, Today, Previous/Next day, Previous/Next month, Refresh and Clear saved events. Changing months opens the calendar. Clear requires confirmation with Select; Back cancels. Double Select is no longer required. Back always follows the native window stack; long Back remains reserved by firmware.
 
-The top status bar shows the current time for comparing it with appointments. Ordinary labels and body text use at least size 18; headings use 24–28. The largest system text setting expands body text and stacks start/end fields in details. [Design decisions and source review](docs/design.md) describe the Pebble guides, nested pages, example repositories and icon licenses.
+The top status bar shows the current time for comparing it with appointments. Ordinary labels and body text use at least size 18; headings use 24–28. The largest system text setting expands body text and stacks expanded start/end fields in details. [Design decisions and source review](docs/design.md) describe the Pebble guides, nested pages, example repositories and icon licenses.
 
 ## Build locally
 
@@ -73,7 +75,7 @@ The installable package is **`dist/pebble-calendar.pbw`**. `build/pebble-calenda
 ./scripts/pebble.sh logs --emulator emery --vnc
 ```
 
-The demo PBW is `dist/pebble-calendar-demo.pbw`, named **PebbleCal Demo**. It shows **DEMO** and uses only made-up events, attendees and a fictional room resource. It never substitutes synthetic events in the live app. The two builds intentionally share an app UUID: installing one replaces the other, and a cache from the other mode is discarded on opening. Version 0.2 upgraded the event/cache format; versions 0.3–0.4 retain it; an old 0.1 cache is discarded and refreshed through Core.
+The demo PBW is `dist/pebble-calendar-demo.pbw`, named **PebbleCal Demo**. It shows **DEMO** and uses only made-up events, attendees and a fictional room resource. It never substitutes synthetic events in the live app. The two builds intentionally share an app UUID: installing one replaces the other, and a cache from the other mode is discarded on opening. Version 0.2 upgraded the event/cache format; versions 0.3–0.5 retain it; an old 0.1 cache is discarded and refreshed through Core.
 
 The standard emulator does not implement Core's native Calendar plugin. Use the demo for UI testing. Installing the live PBW in that emulator should report that plugins need enabling; it cannot prove iPhone calendar access. `--vnc` works in a headless environment as well as on a Mac.
 

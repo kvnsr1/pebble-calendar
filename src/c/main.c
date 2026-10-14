@@ -4,9 +4,9 @@
 #include "ui_theme.h"
 
 enum { MSG_REQUEST = 1, MSG_BEGIN, MSG_EVENT, MSG_COMMIT, MSG_ERROR, MSG_CLEAR, MSG_READY };
-static Window *s_window, *s_calendar_window, *s_clear_window;
-static StatusBarLayer *s_status_bar, *s_calendar_status_bar;
-static Layer *s_calendar_canvas, *s_clear_canvas;
+static Window *s_window, *s_agenda_window, *s_calendar_window, *s_clear_window;
+static StatusBarLayer *s_status_bar, *s_agenda_status_bar, *s_calendar_status_bar;
+static Layer *s_agenda_canvas, *s_calendar_canvas, *s_clear_canvas;
 static ActionBarLayer *s_clear_bar;
 static MenuLayer *s_agenda_menu;
 static ActionMenu *s_actions;
@@ -55,8 +55,8 @@ static void event_time(const CalendarEvent *event, char *result, size_t size) {
     calendar_day_code(event->start, false) != calendar_day_code(event->end, false) ? " +day" : "");
 }
 
-static int header_height(void) { return ui_large_text() ? 58 : 44; }
-static int footer_height(void) { return ui_large_text() ? (s_day_count ? 52 : 28) : 40; }
+static int header_height(void) { return ui_large_text() ? 68 : 60; }
+static int footer_height(void) { return ui_large_text() ? 60 : 48; }
 
 static void refresh_view(void) {
   s_day_count = s_has_snapshot ? calendar_day_events(&s_snapshot, s_day, s_indices) : 0;
@@ -65,9 +65,10 @@ static void refresh_view(void) {
     layout_views();
     menu_layer_reload_data(s_agenda_menu);
     MenuIndex chosen = {0, s_day_count && s_selected >= 0 ? s_selected + 1 : 0};
-    menu_layer_set_selected_index(s_agenda_menu, chosen, !chosen.row ? MenuRowAlignTop : ui_large_text() ? MenuRowAlignCenter : MenuRowAlignNone, false);
+    menu_layer_set_selected_index(s_agenda_menu, chosen, !chosen.row ? MenuRowAlignTop : MenuRowAlignCenter, false);
   }
   if (s_canvas) layer_mark_dirty(s_canvas);
+  if (s_agenda_canvas) layer_mark_dirty(s_agenda_canvas);
   if (s_calendar_canvas) layer_mark_dirty(s_calendar_canvas);
 }
 
@@ -122,48 +123,81 @@ static void draw_calendar(Layer *layer, GContext *ctx) {
   else snprintf(status, sizeof(status), "%d received / %s", count, s_cached ? "cached" : "upcoming");
   if (s_demo_build) snprintf(status, sizeof(status), "DEMO / received events only");
   draw_text(ctx, status, GRect(8, height - 40, width - 16, 22), FONT_KEY_GOTHIC_18, GColorDarkGray);
-  draw_text(ctx, "Select: day agenda", GRect(8, height - 21, width - 16, 24), FONT_KEY_GOTHIC_18_BOLD, GColorCobaltBlue);
+  draw_text(ctx, "Select: use this day", GRect(8, height - 21, width - 16, 24), FONT_KEY_GOTHIC_18_BOLD, GColorCobaltBlue);
+}
+
+static void draw_day_header(GContext *ctx, int width) {
+  graphics_context_set_fill_color(ctx, GColorOxfordBlue);
+  graphics_fill_rect(ctx, GRect(0, 0, width, header_height()), 0, GCornerNone);
+  char heading[40], date[40]; struct tm date_tm = *localtime(&s_day);
+  bool today = calendar_day_code(s_day, false) == calendar_day_code(time(NULL), false);
+  if (today) snprintf(heading, sizeof(heading), "%s", s_demo_build ? "Today / Demo" : "Today");
+  else strftime(heading, sizeof(heading), "%A", &date_tm);
+  strftime(date, sizeof(date), "%a, %b %e", &date_tm);
+  draw_text(ctx, heading, GRect(8, 0, width - 20, 34), FONT_KEY_GOTHIC_28_BOLD, GColorWhite);
+  draw_text(ctx, date, GRect(8, 32, width - 20, ui_line_height()), ui_body_font(), GColorWhite);
 }
 
 static void draw_main(Layer *layer, GContext *ctx) {
   GRect bounds = layer_get_bounds(layer);
   int width = bounds.size.w, height = bounds.size.h, top = header_height();
+  int footer_top = height - footer_height(), line = ui_line_height();
   graphics_context_set_fill_color(ctx, GColorWhite);
   graphics_fill_rect(ctx, bounds, 0, GCornerNone);
-  char heading[40], date[40]; struct tm date_tm = *localtime(&s_day);
-  bool today = calendar_day_code(s_day, false) == calendar_day_code(time(NULL), false);
-  strftime(date, sizeof(date), "%a, %b %e", &date_tm);
-  if (today) snprintf(heading, sizeof(heading), "%s", s_demo_build ? "Today / Demo" : "Today");
-  else strftime(heading, sizeof(heading), "%A", &date_tm);
-  draw_text(ctx, heading, GRect(8, -5, width - 16, 34), FONT_KEY_GOTHIC_28_BOLD, GColorBlack);
-  draw_text(ctx, date, GRect(8, 27, width - 16, 28), ui_body_font(), GColorDarkGray);
-  if (!s_day_count) {
-    int y = top + (ui_large_text() ? 42 : 34);
-    const char *title = s_has_snapshot ? (in_received_window(s_day) ? "No events received" : "No schedule data") : s_cache_cleared ? "Saved list cleared" : "Calendar unavailable";
-    const char *body = s_has_snapshot ? (in_received_window(s_day) ? "Other events may exist." : "Use an upcoming day.") : s_cache_cleared ? "Select Refresh." : s_status;
+  draw_day_header(ctx, width);
+  if (s_day_count) {
+    char count[40]; snprintf(count, sizeof(count), "%d received event%s", s_day_count, s_day_count == 1 ? "" : "s");
+    draw_text(ctx, count, GRect(8, top + 3, width - 20, line), ui_body_bold_font(), GColorCobaltBlue);
+    // Prefer the current/next timed event over an all-day item in the preview.
+    int preview = 0;
+    for (int i = 0; i < s_day_count; ++i) {
+      CalendarEvent *event = &s_snapshot.events[s_indices[i]];
+      if (!(event->flags & FLAG_ALL_DAY) && event->end > time(NULL)) { preview = i; break; }
+    }
+    CalendarEvent *event = &s_snapshot.events[s_indices[preview]];
+    int available = footer_top - top - line - 10;
+    int title_height = available - (ui_large_text() ? 0 : line + 3);
+    draw_text(ctx, event->title, GRect(8, top + line + 6, width - 20, title_height), ui_event_font(), GColorBlack);
+    if (!ui_large_text()) {
+      char times[48]; event_time(event, times, sizeof(times));
+      draw_text(ctx, times, GRect(8, top + line + 9 + title_height, width - 20, line), ui_body_font(), GColorDarkGray);
+    }
+  } else {
+    const char *title = s_has_snapshot ? (in_received_window(s_day) ? "No events received" : "No schedule data") :
+      s_cache_cleared ? "Saved list cleared" : "Calendar unavailable";
+    const char *body = s_has_snapshot ? (in_received_window(s_day) ? "Other events may exist." : "Outside upcoming list.") :
+      s_cache_cleared ? "Select to refresh." : s_status[0] ? s_status : "Select for options.";
+    if (ui_large_text()) {
+      title = s_has_snapshot ? (in_received_window(s_day) ? "None received" : "No schedule") : s_cache_cleared ? "List cleared" : "No calendar";
+      body = s_has_snapshot ? (in_received_window(s_day) ? "Upcoming list" : "Outside list") : strstr(s_status, "Enable plugins") ? "Enable Core plugins" :
+        strstr(s_status, "Allow Calendar") ? "Allow Calendar" : "Select for options";
+    }
     if (s_loading && !s_has_snapshot) { title = "Loading agenda"; body = "Keep Core connected."; }
-    int title_height = graphics_text_layout_get_content_size(title, fonts_get_system_font(FONT_KEY_GOTHIC_24_BOLD),
-      GRect(0, 0, width - 16, 1000), GTextOverflowModeWordWrap, GTextAlignmentLeft).h;
-    ui_text(ctx, title, FONT_KEY_GOTHIC_24_BOLD, GColorBlack, GRect(8, y, width - 16, title_height + 6), GTextAlignmentLeft, GTextOverflowModeWordWrap);
-    ui_text(ctx, body, ui_body_font(), GColorBlack, GRect(8, y + title_height + 8, width - 16, height - footer_height() - y - title_height - 8),
-            GTextAlignmentLeft, GTextOverflowModeWordWrap);
+    int title_height = graphics_text_layout_get_content_size(title, fonts_get_system_font(ui_event_font()),
+      GRect(0, 0, width - 20, 1000), GTextOverflowModeWordWrap, GTextAlignmentLeft).h;
+    ui_text(ctx, title, ui_event_font(), GColorBlack, GRect(8, top + 4, width - 20, title_height + 4), GTextAlignmentLeft, GTextOverflowModeWordWrap);
+    draw_text(ctx, body, GRect(8, top + title_height + 10, width - 20, footer_top - top - title_height - 12), ui_body_font(), GColorBlack);
   }
-  char footer[64]; int y = height - footer_height();
-  if (s_loading) snprintf(footer, sizeof(footer), "Refreshing...");
-  else if (s_status[0]) snprintf(footer, sizeof(footer), "%s", s_status);
+  graphics_context_set_stroke_color(ctx, GColorLightGray);
+  graphics_draw_line(ctx, GPoint(8, footer_top), GPoint(width - 8, footer_top));
+  draw_text(ctx, s_day_count ? "Select: day agenda" : "Select: options", GRect(8, footer_top + 2, width - 20, line), ui_body_bold_font(), GColorCobaltBlue);
+  char status[48];
+  if (s_loading) snprintf(status, sizeof(status), "Refreshing...");
+  else if (s_status[0]) snprintf(status, sizeof(status), "%s", s_has_snapshot ? "Offline / saved list" : s_cache_cleared ? "Saved list cleared" : "Phone sync unavailable");
   else if (s_has_snapshot) {
     int age = (int)(time(NULL) - s_snapshot.updated) / 60; if (age < 0) age = 0;
-    snprintf(footer, sizeof(footer), "%s %dm ago%s", s_cached ? "Saved" : "Updated", age, s_cache_saved ? "" : " / RAM");
-  } else snprintf(footer, sizeof(footer), "Select options to refresh");
-  graphics_context_set_stroke_color(ctx, GColorLightGray);
-  graphics_draw_line(ctx, GPoint(8, y), GPoint(width - 8, y));
-  if (ui_large_text() && !s_day_count) {
-    draw_text(ctx, s_demo_build ? "Demo / upcoming list" : "Upcoming list", GRect(8, y - 2, width - 16, 30), ui_body_font(), GColorCobaltBlue);
-    return;
-  }
-  draw_text(ctx, footer, GRect(8, y + 2, width - 16, ui_line_height()), ui_body_font(), GColorDarkGray);
-  draw_text(ctx, s_demo_build ? "Demo / upcoming list" : "Upcoming: max 10 / 7 days",
-            GRect(8, y + ui_line_height(), width - 16, ui_line_height()), ui_body_font(), GColorCobaltBlue);
+    snprintf(status, sizeof(status), "%s %dm%s", s_cached ? "Saved" : "Updated", age, s_cache_saved ? "" : " / RAM");
+  } else snprintf(status, sizeof(status), "No saved schedule");
+  draw_text(ctx, status, GRect(8, footer_top + line + 2, width - 20, line), ui_body_font(), GColorDarkGray);
+}
+
+static void draw_agenda(Layer *layer, GContext *ctx) {
+  GRect bounds = layer_get_bounds(layer);
+  graphics_context_set_fill_color(ctx, GColorWhite);
+  graphics_fill_rect(ctx, bounds, 0, GCornerNone);
+  draw_day_header(ctx, bounds.size.w);
+  draw_text(ctx, s_demo_build ? "Demo / received events" : "Upcoming: max 10 / 7 days",
+    GRect(8, bounds.size.h - ui_line_height() - 2, bounds.size.w - 16, ui_line_height()), ui_body_font(), GColorDarkGray);
 }
 
 static uint16_t agenda_rows(MenuLayer *menu, uint16_t section, void *context) { return s_day_count + 1; }
@@ -333,8 +367,24 @@ static void shift_date(int amount, bool month) {
   if (next >= first && next < end) *day = next;
   s_selected = 0; refresh_view();
 }
+static void close_agenda(void) {
+  if (window_stack_contains_window(s_agenda_window)) window_stack_remove(s_agenda_window, false);
+}
+static void home_up(ClickRecognizerRef ref, void *context) { shift_date(-1, false); }
+static void home_down(ClickRecognizerRef ref, void *context) { shift_date(1, false); }
+static void home_select(ClickRecognizerRef ref, void *context) {
+  if (s_day_count) { s_selected = 0; window_stack_push(s_agenda_window, true); refresh_view(); }
+  else open_options();
+}
+static void home_options(ClickRecognizerRef ref, void *context) { open_options(); }
+static void home_clicks(void *context) {
+  window_single_repeating_click_subscribe(BUTTON_ID_UP, 200, home_up);
+  window_single_repeating_click_subscribe(BUTTON_ID_DOWN, 200, home_down);
+  window_single_click_subscribe(BUTTON_ID_SELECT, home_select);
+  window_long_click_subscribe(BUTTON_ID_SELECT, 650, home_options, NULL);
+}
 static void open_calendar(void) {
-  event_detail_close();
+  event_detail_close(); close_agenda();
   if (!window_stack_contains_window(s_calendar_window)) {
     s_calendar_day = s_day; s_month_view = true; window_stack_push(s_calendar_window, true);
   }
@@ -365,6 +415,7 @@ static void clear_confirm(ClickRecognizerRef ref, void *context) {
   s_cache_cleared = true; s_has_snapshot = s_loading = s_receiving = false;
   snprintf(s_status, sizeof(s_status), "Saved list cleared.");
   window_stack_pop(true); event_detail_close(); refresh_view();
+  close_agenda();
 }
 static void clear_clicks(void *context) { window_single_click_subscribe(BUTTON_ID_SELECT, clear_confirm); }
 static void clear_draw(Layer *layer, GContext *ctx) {
@@ -379,7 +430,7 @@ static void clear_load(Window *window) {
   GRect bounds = layer_get_bounds(window_get_root_layer(window)); bounds.size.w -= ACTION_BAR_WIDTH;
   s_clear_canvas = layer_create(bounds); layer_set_update_proc(s_clear_canvas, clear_draw);
   layer_add_child(window_get_root_layer(window), s_clear_canvas);
-  s_clear_bar = ui_action_bar(window, clear_clicks, true);
+  s_clear_bar = ui_confirmation_bar(window, clear_clicks);
 }
 static void clear_unload(Window *window) {
   action_bar_layer_remove_from_window(s_clear_bar); action_bar_layer_destroy(s_clear_bar);
@@ -394,10 +445,10 @@ static void actions_closed(ActionMenu *menu, const ActionMenuItem *item, void *c
   if (action == ACT_CALENDAR) { if (s_month_view) choose_day(); else open_calendar(); }
   else if (action == ACT_TODAY) {
     if (s_month_view) s_calendar_day = calendar_midnight(time(NULL));
-    else { event_detail_close(); s_day = calendar_midnight(time(NULL)); }
+    else { event_detail_close(); close_agenda(); s_day = calendar_midnight(time(NULL)); }
     s_selected = 0; refresh_view();
   } else if (action == ACT_PREV_DAY || action == ACT_NEXT_DAY) {
-    event_detail_close(); shift_date(action == ACT_PREV_DAY ? -1 : 1, false);
+    event_detail_close(); close_agenda(); shift_date(action == ACT_PREV_DAY ? -1 : 1, false);
   } else if (action == ACT_PREV_MONTH || action == ACT_NEXT_MONTH) {
     open_calendar(); shift_date(action == ACT_PREV_MONTH ? -1 : 1, true);
   } else if (action == ACT_REFRESH) { s_request_attempts = 0; request_refresh(); }
@@ -405,7 +456,7 @@ static void actions_closed(ActionMenu *menu, const ActionMenuItem *item, void *c
 }
 static void open_options(void) {
   if (s_actions) return;
-  const char *labels[] = {s_month_view ? "Open day agenda" : "Calendar", "Today", "Previous day", "Next day",
+  const char *labels[] = {s_month_view ? "Use selected day" : "Calendar", "Today", "Previous day", "Next day",
                          "Previous month", "Next month", "Refresh", "Clear saved events"};
   s_pending_action = 0; s_actions_root = action_menu_level_create(8);
   for (int i = 0; i < 8; ++i)
@@ -429,8 +480,12 @@ static void layout_views(void) {
     GRect bounds = layer_get_unobstructed_bounds(window_get_root_layer(s_window));
     bounds.origin.y += STATUS_BAR_LAYER_HEIGHT; bounds.size.h -= STATUS_BAR_LAYER_HEIGHT;
     layer_set_frame(s_canvas, bounds);
-    GRect list = GRect(0, bounds.origin.y + header_height(), bounds.size.w, bounds.size.h - header_height() - footer_height());
-    if (!s_day_count) list.size.h = ui_large_text() ? 40 : 32;
+  }
+  if (s_agenda_canvas) {
+    GRect bounds = layer_get_unobstructed_bounds(window_get_root_layer(s_agenda_window));
+    bounds.origin.y += STATUS_BAR_LAYER_HEIGHT; bounds.size.h -= STATUS_BAR_LAYER_HEIGHT;
+    layer_set_frame(s_agenda_canvas, bounds);
+    GRect list = GRect(0, bounds.origin.y + header_height(), bounds.size.w, bounds.size.h - header_height() - ui_line_height() - 4);
     layer_set_frame(menu_layer_get_layer(s_agenda_menu), list);
   }
   if (s_calendar_canvas) {
@@ -444,6 +499,15 @@ static void unobstructed(void *context) { layout_views(); refresh_view(); }
 static void load(Window *window) {
   s_canvas = layer_create(layer_get_bounds(window_get_root_layer(window)));
   layer_set_update_proc(s_canvas, draw_main); layer_add_child(window_get_root_layer(window), s_canvas);
+  s_status_bar = ui_status_bar(window); layout_views(); refresh_view();
+}
+static void unload(Window *window) {
+  status_bar_layer_destroy(s_status_bar); layer_destroy(s_canvas);
+  s_status_bar = NULL; s_canvas = NULL;
+}
+static void agenda_load(Window *window) {
+  s_agenda_canvas = layer_create(layer_get_bounds(window_get_root_layer(window)));
+  layer_set_update_proc(s_agenda_canvas, draw_agenda); layer_add_child(window_get_root_layer(window), s_agenda_canvas);
   s_agenda_menu = menu_layer_create(GRect(0, 0, 1, 1));
   menu_layer_set_normal_colors(s_agenda_menu, GColorWhite, GColorBlack);
   menu_layer_set_highlight_colors(s_agenda_menu, GColorCobaltBlue, GColorWhite);
@@ -451,11 +515,11 @@ static void load(Window *window) {
     .draw_row = agenda_draw, .select_click = agenda_select, .select_long_click = agenda_options, .selection_changed = agenda_selection});
   menu_layer_set_click_config_onto_window(s_agenda_menu, window);
   layer_add_child(window_get_root_layer(window), menu_layer_get_layer(s_agenda_menu));
-  s_status_bar = ui_status_bar(window); layout_views(); refresh_view();
+  s_agenda_status_bar = ui_status_bar(window); layout_views(); refresh_view();
 }
-static void unload(Window *window) {
-  menu_layer_destroy(s_agenda_menu); status_bar_layer_destroy(s_status_bar); layer_destroy(s_canvas);
-  s_agenda_menu = NULL; s_status_bar = NULL; s_canvas = NULL;
+static void agenda_unload(Window *window) {
+  menu_layer_destroy(s_agenda_menu); status_bar_layer_destroy(s_agenda_status_bar); layer_destroy(s_agenda_canvas);
+  s_agenda_menu = NULL; s_agenda_status_bar = NULL; s_agenda_canvas = NULL;
 }
 static void calendar_load(Window *window) {
   s_calendar_canvas = layer_create(layer_get_bounds(window_get_root_layer(window)));
@@ -475,9 +539,12 @@ static void init(void) {
   if (s_has_snapshot && s_snapshot.demo != s_demo_build) { calendar_store_clear(); memset(&s_snapshot, 0, sizeof(s_snapshot)); s_has_snapshot = false; }
   if (s_has_snapshot) s_status[0] = 0;
   s_day_count = s_has_snapshot ? calendar_day_events(&s_snapshot, s_day, s_indices) : 0;
-  s_window = window_create(); event_detail_create(open_options); s_calendar_window = window_create(); s_clear_window = window_create();
+  s_window = window_create(); s_agenda_window = window_create(); event_detail_create(open_options); s_calendar_window = window_create(); s_clear_window = window_create();
   window_set_background_color(s_window, GColorWhite);
   window_set_window_handlers(s_window, (WindowHandlers){ .load = load, .unload = unload });
+  window_set_click_config_provider(s_window, home_clicks);
+  window_set_background_color(s_agenda_window, GColorWhite);
+  window_set_window_handlers(s_agenda_window, (WindowHandlers){.load = agenda_load, .unload = agenda_unload});
   window_set_background_color(s_calendar_window, GColorWhite); window_set_background_color(s_clear_window, GColorWhite);
   window_set_window_handlers(s_calendar_window, (WindowHandlers){.load = calendar_load, .unload = calendar_unload, .appear = calendar_appear});
   window_set_click_config_provider(s_calendar_window, calendar_clicks);
@@ -497,7 +564,7 @@ static void deinit(void) {
   tick_timer_service_unsubscribe(); connection_service_unsubscribe(); app_message_deregister_callbacks();
   unobstructed_area_service_unsubscribe();
   s_pending_action = 0; if (s_actions) action_menu_close(s_actions, false);
-  window_destroy(s_clear_window); window_destroy(s_calendar_window); event_detail_destroy(); window_destroy(s_window); ui_theme_deinit();
+  window_destroy(s_clear_window); window_destroy(s_calendar_window); event_detail_destroy(); window_destroy(s_agenda_window); window_destroy(s_window); ui_theme_deinit();
   memset(&s_snapshot, 0, sizeof(s_snapshot)); memset(&s_staging, 0, sizeof(s_staging));
 }
 

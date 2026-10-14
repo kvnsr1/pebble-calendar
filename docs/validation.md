@@ -48,3 +48,15 @@ The Core patch is a proposed interface, not an official release. iOS compilation
 - Version 0.4 installed successfully on the physical watch through the cloud Developer Connection. The first attempt timed out waiting for the phone; the retry connected and reported “App install succeeded.” Physical data delivery and UI use are still user/device checks, separate from installation.
 
 The provider still supplies at most ten upcoming events within seven days. Attendees require the prepared Core enhancement or a compatible official release; the redesign does not change the phone's installed Calendar plugin.
+
+## Version 0.5 clipping and Timeline layout — 2026-10-14
+
+- Split the overview and event list into separate windows. Up/Down change the overview date without requesting a new phone snapshot; Select opens the day's list or empty-day options. The dark date header, bounded preview and two-line footer no longer compete with a root menu.
+- Replaced the event detail action bar with the native-style Select indent, using public SDK primitives. The full-width dark header contains a date glyph, start/end markers and the wrapped title. Room, expanded times/dates, attendee list and calendar remain scrollable.
+- All 27 Node tests and host C checks passed. Both live and demo emery PBWs built and passed package inspection: 0.5.0, manifest version 2, Calendar permission only. The live JS bundle contains no demo attendee names. Live RAM footprint is 44,963 bytes / 128 KiB; resources 4,363 bytes / 256 KiB. Runtime heap is additional. Checksums were regenerated and verified after the final builds.
+- Synthetic emulator inspection checked regular and extra-large overview/list/details, received empty days, a midnight-spanning event, 12/24-hour time formatting, a long event title and scrolling, fictional room/attendees, options from the Select indent, and clearing the saved list back to the overview. Selecting a month-grid date returns to the corresponding overview; the labels reflect that behavior.
+- The live PBW was also launched in the SDK emulator: demo cache was discarded and the missing Calendar plugin showed the fixed enable-plugins error without clipping.
+- Physical installation is pending. Three bounded attempts authenticated with the cloud Dev Connection but timed out waiting for the iPhone; none reported an install success. The previously installed 0.4 app remains the last confirmed device version.
+- No event title, URL or attendee content from the user's attached watch screenshots was copied into fixtures or artifacts. Physical watch installation does not involve retrieving its calendar data.
+
+The provider limit and official Core attendee limitation remain as documented above.

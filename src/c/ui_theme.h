@@ -9,6 +9,6 @@ int ui_line_height(void);
 void ui_text(GContext *ctx, const char *value, const char *font, GColor color,
              GRect rect, GTextAlignment align, GTextOverflowMode overflow);
 StatusBarLayer *ui_status_bar(Window *window);
-ActionBarLayer *ui_action_bar(Window *window, ClickConfigProvider clicks, bool confirm);
+ActionBarLayer *ui_confirmation_bar(Window *window, ClickConfigProvider clicks);
 void ui_theme_init(void);
 void ui_theme_deinit(void);

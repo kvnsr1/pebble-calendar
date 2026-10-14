@@ -1,6 +1,6 @@
 {
   "name": "pebble-calendar",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "author": "kvnsr1",
   "private": true,
   "keywords": ["pebble-app"],
@@ -26,9 +26,6 @@
     },
     "resources": { "media": [
       { "type": "bitmap", "name": "IMAGE_MENU_ICON", "file": "images/menu_icon.png", "menuIcon": true },
-      { "type": "bitmap", "name": "ACTION_UP", "file": "images/pebble/up.png" },
-      { "type": "bitmap", "name": "ACTION_DOWN", "file": "images/pebble/down.png" },
-      { "type": "bitmap", "name": "ACTION_MORE", "file": "images/pebble/more.png" },
       { "type": "bitmap", "name": "ACTION_CHECK", "file": "images/pebble/check.png" }
     ] }
   }
