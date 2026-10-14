@@ -1,18 +1,30 @@
 # PebbleCal
 
-A native agenda and month calendar for Pebble Time 2 (`emery`). It reads the calendars already enabled in Pebble Core through the built-in experimental Calendar plugin. The basic agenda works with unmodified Core. Optional attendee support uses the Core enhancement below. Calendar data stays on your phone and watch, with no Google login, ICS link, hosted settings page, backend or separate iPhone app.
+A native day overview, animated event timeline and month calendar for Pebble Time 2 (`emery`). It reads the calendars already enabled in Pebble Core through the built-in experimental Calendar plugin. No Google login, ICS link, hosted configuration, new backend or separate iPhone app is required.
 
-**Current provider limit: the next 10 events across all enabled calendars, within seven days. Completed events are excluded. This is not a complete daily agenda.** A day with no displayed events means none were in the received list, not that your calendar is free.
+**Version 0.6 is a development draft.** Builds and host tests pass, but event-detail redraw and repeated synthetic room entry are not reliably validated in the emulator. A blank-detail redraw also reproduced with the previous 0.5 source in the same emulator. The cause is unresolved; this does not establish that the physical watch is affected or unaffected. The latest CloudPebble installation retry authenticated but timed out waiting for the iPhone. See [validation](docs/validation.md).
+
+**Provider limit: ten upcoming events across all enabled calendars, within seven days. Completed events are excluded. Counts represent received entries, not a complete day's schedule.** Past dates ordinarily have no historical data. A dash means counts are unavailable, rather than zero. Zero only means no matching entries were received for that date.
 
 Synthetic emulator previews (no real calendar data):
 
-![Demo day overview](docs/screenshots/home-demo.png) ![Demo agenda](docs/screenshots/agenda-demo.png) ![Demo event details](docs/screenshots/details-demo.png)
+![Demo overview](docs/screenshots/home-demo.png) ![Demo event timeline](docs/screenshots/agenda-demo.png) ![Demo event details](docs/screenshots/details-demo.png)
 
-The detail screen has separate Event Name, Start Time, End Time, Room, Attendee List and Calendar sections. **Official Core 1.15.0.1 does not expose attendees** even though native Timeline can show them. PebbleCal 0.3 and later automatically request attendee names when an enhanced Core plugin advertises support, separates room resources from people, and extracts office, building, floor/room, name and capacity. With the current official release, attendees still say “Not provided by phone”; matching event Location text remains a labeled room fallback.
+The overview and details use white text on full-screen charcoal for past dates, navy for today and dark teal for future dates. The overview contains the date and separate Work/Personal counts. Calendar labels containing **Uber** default to Work; labels containing **Gmail** default to Personal, without assuming that a calendar's name identifies its account. Other received calendars have a separate count. For custom names, hold Select → Calendar groups → select a calendar → Work/Personal/Other. Preferences stay on the watch; no real calendar names are hardcoded in the repository. Identical calendar labels cannot be distinguished by this provider.
 
-A reviewable [Core Calendar enhancement](integrations/core-calendar/README.md) reuses the existing native reader and permissions. It includes source changes, synthetic Core tests and Mac/iPhone build instructions. Installing the PBW alone cannot activate it; attendee support requires a Core build containing that patch or a future official release adopting the contract. It has not been submitted upstream or verified on iPhone.
+The day's list follows native Timeline: white event cards with start time, title and location/source, a blue icon rail and a short easing animation on Up/Down. The detail page contains only the date icon, start/end markers and wrapped title, plus a room section **only after the user enters a room**. There are no clock bars, instructional footers, freshness labels, attendee lists or automatic location/room sections on these three pages.
 
-The room format is `OFFICE | address BUILDING-floorOrdinal-floor.room Room Name (capacity) [facilities]`. The parser extracts office, building, floor, room number, name, capacity and optional facilities, checks that both floor identifiers agree, and separates resource attendees from people. Numeric room numbers drop leading zeroes. The room card identifies whether the source was an attendee or Location. Unrecognized locations remain visible as ordinary text; no office/floor/capacity is guessed.
+![Synthetic timeline scroll](docs/screenshots/timeline-scroll-demo.gif)
+
+## Voice room entry
+
+In event details, press Select and say a building and floor/room number, for example **“MB4 nine point seventeen.”** Confirm the native dictation transcription. The parser accepts `MB4 9.17`, spaced building letters, spoken numbers and “point”/“dot”; it rejects missing separators, incomplete or ambiguous input and out-of-range numbers. The result shows a door icon, building, floor and room number. Select again replaces the local note. Canceling dictation keeps the previous note.
+
+This is a watch-only annotation; it does not edit or invite a room in Apple/Google Calendar. At most ten notes are kept locally, with a 24-hour limit. Notes match the received calendar name, title, start and end; changed/deleted events or a revoked Calendar permission remove the corresponding notes. Because the provider has no stable occurrence IDs, identical records cannot be distinguished. Clear saved events also clears room notes. Calendar grouping preferences retain only name hashes and categories.
+
+Dictation uses **Core's existing speech service**, not a new companion app. Core 1.15.0.1 supports local/cloud speech routing; the public watch API does not let this app choose the provider. Spoken audio follows Core's selected provider and may require a model download, speech permission or connectivity. PebbleCal sends no event titles or calendar payloads to the speech service and does not log transcripts. Choose an appropriate local speech mode in Core if the spoken room information must remain on-device. Actual microphone recognition on the user's watch still requires device verification.
+
+The earlier [Core attendee enhancement proposal](integrations/core-calendar/README.md) is retained for reference. The 0.6 live adapter does not request or retain attendee names, and this design does not require that patch. Automatic attendee-derived rooms from older versions are not shown; unused metadata in the watch cache is cleared on upgrade/refresh.
 
 ## iPhone prerequisites
 
@@ -25,21 +37,19 @@ The app declares only the `Calendar` permission in a version-2 app manifest. If 
 
 ## Controls
 
-PebbleCal opens to **today's day overview** with a dark date header, received-event count and a preview. Up and Down change dates directly. Select opens that day's event list; on an empty day it opens options. Hold Select for options from any day. A day with no received events is not confirmation that the calendar is empty.
+PebbleCal opens to today's overview. Up/Down change dates, and Select opens the day even when the received list is empty. Hold Select opens options.
 
-| Button | Day overview | Event list | Month calendar | Event details |
+| Button | Overview | Day timeline | Month calendar | Event details |
 | --- | --- | --- | --- | --- |
-| Up / Down | Previous / next day | Previous / next item | Previous / next date | Scroll content |
-| Select | Open day agenda or empty-day options | Open selected event or Calendar & options | Use selected date | Open options (right-edge indent) |
-| Back | Exit the app | Return to day overview | Cancel browsing | Return to event list |
-| Hold Up / Down | Repeat date navigation | Native menu repeat | Previous / next month | Native scroll repeat |
+| Up / Down | Previous / next day | Previous / next event | Previous / next date | Scroll |
+| Select | Open day | Open event | Use date | Dictate room |
+| Back | Exit | Return to overview | Cancel browsing | Return to timeline |
+| Hold Up / Down | Repeat days | Repeat events | Previous / next month | Repeat scrolling |
 | Hold Select | Options | Options | Options | — |
 
-Event details use a full-width dark header: a date icon and start/end markers above the complete wrapped event title. A small black indent at the Select button replaces the fixed action bar. Room/location follows the title; expanded start/end dates, attendees and calendar remain scrollable below. The bottom arrow indicates more content.
+Options contain Calendar, Today, day/month navigation, Refresh, Clear saved events and Calendar groups. Clearing requires confirmation; Back cancels. Native window stacking governs Back; long Back remains reserved by firmware. The month grid and settings retain standard native components, while the overview, timeline and details use the requested minimal layout.
 
-The native action menu offers Calendar, Today, Previous/Next day, Previous/Next month, Refresh and Clear saved events. Changing months opens the calendar. Clear requires confirmation with Select; Back cancels. Double Select is no longer required. Back always follows the native window stack; long Back remains reserved by firmware.
-
-The top status bar shows the current time for comparing it with appointments. Ordinary labels and body text use at least size 18; headings use 24–28. The largest system text setting expands body text and stacks expanded start/end fields in details. [Design decisions and source review](docs/design.md) describe the Pebble guides, nested pages, example repositories and icon licenses.
+System fonts and the largest text preference are supported. Animations run for 180 ms only when navigating the timeline; there is no idle animation timer or additional calendar polling. [Design decisions and source review](docs/design.md) describe the Pebble guides and firmware references.
 
 ## Build locally
 
@@ -75,7 +85,7 @@ The installable package is **`dist/pebble-calendar.pbw`**. `build/pebble-calenda
 ./scripts/pebble.sh logs --emulator emery --vnc
 ```
 
-The demo PBW is `dist/pebble-calendar-demo.pbw`, named **PebbleCal Demo**. It shows **DEMO** and uses only made-up events, attendees and a fictional room resource. It never substitutes synthetic events in the live app. The two builds intentionally share an app UUID: installing one replaces the other, and a cache from the other mode is discarded on opening. Version 0.2 upgraded the event/cache format; versions 0.3–0.5 retain it; an old 0.1 cache is discarded and refreshed through Core.
+The demo PBW is `dist/pebble-calendar-demo.pbw`, named **PebbleCal Demo**. Its launcher name identifies the demo; the requested minimal pages carry no DEMO status text. It uses only made-up events and a synthetic voice-room result. Select in demo details supplies “MB2 three point seven” without recording audio; the live build always uses real dictation. It never substitutes synthetic events in the live app. The two builds intentionally share an app UUID: installing one replaces the other, and a cache from the other mode is discarded on opening. Version 0.2 upgraded the event/cache format; versions 0.3–0.6 retain it; an old 0.1 cache is discarded and refreshed through Core.
 
 The standard emulator does not implement Core's native Calendar plugin. Use the demo for UI testing. Installing the live PBW in that emulator should report that plugins need enabling; it cannot prove iPhone calendar access. `--vnc` works in a headless environment as well as on a Mac.
 
@@ -105,7 +115,7 @@ The app keeps no persistent phone-side event cache, makes no web requests and up
 ./scripts/test.sh
 ```
 
-Requires Node.js and a host C compiler (`cc`; Xcode Command Line Tools on macOS). Tests use synthetic events only. They cover provider validation, chronological merging, missing fields, UTF-8 bounds, empty/update/delete snapshots, message acknowledgments, stale subscription callbacks, and error redaction. Native tests exercise date boundaries, midnight spans, all-day date semantics, 23/25-hour DST days, cache expiry/corruption and every interruption point in a cache write.
+Requires Node.js and a host C compiler (`cc`; Xcode Command Line Tools on macOS). Tests use synthetic events only. They cover provider validation, chronological merging, missing fields, UTF-8 bounds, empty/update/delete snapshots, message acknowledgments, stale subscription callbacks, and error redaction, and ignoring unused attendee fields even when advertised. Native room tests cover spoken-number parsing, malformed input, grouping, conservative event matching, persistence, expiry and deletion. Native date tests exercise date boundaries, midnight spans, all-day date semantics, 23/25-hour DST days, cache expiry/corruption and every interruption point in a cache write.
 
 Build and emulator validation were performed in the cloud workspace. The original live app was successfully installed through the cloud Developer Connection. Actual EventKit delivery through your iPhone on iOS 27 and background suspension/reconnect behavior still need the [device checklist](docs/device-validation.md). No real personal or corporate events were accessed during development.
 
@@ -116,9 +126,10 @@ Build and emulator validation were performed in the cloud workspace. The origina
 - **Updates while closed:** PKJS stops when the watch app closes. iOS can suspend Core, delaying timers and updates. Open Core and use Refresh when needed; no real-time/background guarantee is made.
 - **Enable plugins:** verify the debug toggle and supported Core version; reopen this app after enabling it.
 - **Allow Calendar access:** check Core's iOS full calendar permission, its enabled calendar list, and the custom app's Calendar permission; refresh afterward. Core may return an empty list when OS permission is missing, which cannot be distinguished from no available events by this provider alone.
-- **Sync failed/offline:** check watch connection, open Core, then Options → Refresh. Cached data stays visibly marked.
+- **Sync failed/offline:** check watch connection, open Core, then Options → Refresh. The requested minimal pages hide sync/freshness labels; use Refresh to update the cached list.
 - **RAM only:** firmware storage is too small or a cache write failed; the current list works until exit but may not survive restarting. Current emery SDK supplies `persist_get_max_size`; this MVP is intended for current firmware.
-- **Attendees missing:** Core's plugin does not expose them. Native Timeline uses a separate synchronization path that includes attendee text. An upstream plugin extension is required for live attendee lists and rooms found only in attendee resources.
+- **Voice unavailable:** check Core's speech mode/model and phone connection. Native dictation handles recognition errors and cancellation; invalid accepted room text opens a separate error dialog. The SDK emulator cannot validate live microphone transcription.
+- **Counts differ from your calendar:** the provider is capped and returns calendar labels, not account IDs. Use Calendar groups for custom names. The same label on two accounts cannot be separated by the current API.
 - **Demo data after installation:** install the live `dist/pebble-calendar.pbw`, named PebbleCal; the demo is a separate explicitly named build.
 - **SDK/editor issues:** use `./scripts/pebble.sh --version`; install an emery-capable SDK; avoid mixing `.tools` with another repository's virtual environment. In sandboxed cloud execution, emulator commands need local socket permission. STPyV8 requires ICU data in its standard per-user cache; this was prepared separately in the development environment.
 

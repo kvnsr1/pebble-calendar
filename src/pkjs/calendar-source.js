@@ -61,7 +61,7 @@ function enrich(event, attendees, attendeesAvailable, allowLocationFallback) {
   return result;
 }
 
-function normalize(envelope, now, attendeesSupported) {
+function normalize(envelope, now, attendeesSupported, allowLocationFallback) {
   if (!envelope || envelope.pluginUuid !== BUILTIN_UUID || !Array.isArray(envelope.instances) || envelope.instances.length > MAX_EVENTS) {
     throw new Error('INVALID_DATA');
   }
@@ -81,7 +81,7 @@ function normalize(envelope, now, attendeesSupported) {
       available = true;
     }
     return enrich({ title: text(p.name).trim() || 'Untitled event', location: text(p.location),
-      calendar: text(p.calendar), start: start, end: end, flags: p.all_day.boolean.value ? FLAGS.ALL_DAY : 0 }, names, available, true);
+      calendar: text(p.calendar), start: start, end: end, flags: p.all_day.boolean.value ? FLAGS.ALL_DAY : 0 }, names, available, allowLocationFallback !== false);
   }).sort(function(a, b) { return a.start - b.start || a.title.localeCompare(b.title); });
   // A complete source envelope is the unit of replacement. Never merge positional IDs.
   return { events: events, updated: Math.floor(now / 1000), demo: false };

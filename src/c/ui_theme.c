@@ -1,4 +1,5 @@
 #include "ui_theme.h"
+#include "calendar.h"
 
 static bool s_large;
 static GBitmap *s_check;
@@ -39,4 +40,32 @@ void ui_theme_init(void) {
 
 void ui_theme_deinit(void) {
   gbitmap_destroy(s_check);
+}
+
+GColor ui_day_color(time_t day) {
+  int relation = calendar_day_relation(day, time(NULL));
+  return relation < 0 ? GColorDarkGray : relation > 0 ? GColorMidnightGreen : GColorOxfordBlue;
+}
+void ui_date_icon(GContext *ctx, time_t instant, bool utc, GPoint origin, GColor ink) {
+  struct tm date = *(utc ? gmtime(&instant) : localtime(&instant));
+  char month[8], day[4]; strftime(month, sizeof(month), "%b", &date); snprintf(day, sizeof(day), "%d", date.tm_mday);
+  graphics_context_set_fill_color(ctx, GColorWhite);
+  graphics_fill_rect(ctx, GRect(origin.x, origin.y, 50, 58), 2, GCornersAll);
+  graphics_context_set_stroke_color(ctx, ink);
+  graphics_draw_line(ctx, GPoint(origin.x + 4, origin.y + 18), GPoint(origin.x + 46, origin.y + 18));
+  ui_text(ctx, month, FONT_KEY_GOTHIC_14_BOLD, ink, GRect(origin.x, origin.y, 50, 18), GTextAlignmentCenter, GTextOverflowModeWordWrap);
+  ui_text(ctx, day, FONT_KEY_LECO_32_BOLD_NUMBERS, ink, GRect(origin.x, origin.y + 20, 50, 38), GTextAlignmentCenter, GTextOverflowModeWordWrap);
+}
+void ui_room_icon(GContext *ctx, GPoint origin, GColor ink) {
+  graphics_context_set_stroke_color(ctx, ink);
+  graphics_context_set_stroke_width(ctx, 2);
+  graphics_draw_rect(ctx, GRect(origin.x, origin.y, 20, 28));
+  graphics_draw_line(ctx, GPoint(origin.x - 3, origin.y + 28), GPoint(origin.x + 23, origin.y + 28));
+  graphics_context_set_fill_color(ctx, ink); graphics_fill_circle(ctx, GPoint(origin.x + 14, origin.y + 15), 1);
+  graphics_context_set_stroke_width(ctx, 1);
+}
+void ui_select_indent(Layer *layer, GContext *ctx) {
+  GRect bounds = layer_get_bounds(layer);
+  graphics_context_set_fill_color(ctx, GColorBlack);
+  graphics_fill_circle(ctx, GPoint(bounds.size.w + 4, bounds.size.h / 2), 13);
 }

@@ -1,4 +1,4 @@
-# PebbleCal 0.5 design
+# PebbleCal 0.6 design
 
 Reviewed 2026-10-14 against Pebble's live developer guides and the official documentation source at [coredevices/sdk-docs](https://github.com/coredevices/sdk-docs/tree/a9641e4db0426a026151f6d689255ea724904800). Research checkouts are separate from this application and from Flight/Transit. The original attendee integration is retained.
 
@@ -6,24 +6,23 @@ Reviewed 2026-10-14 against Pebble's live developer guides and the official docu
 
 | Pebble guidance | PebbleCal implementation |
 | --- | --- |
-| Prioritize the app's main purpose and quick access | Open today's overview. Up/Down browse dates; Select opens the received event list; held Select opens calendar/options. |
-| Familiar menu navigation and clear actions | Native MenuLayer for events; native ActionMenu for date navigation, refresh and clearing. A visible Calendar & options list row, held Select on the overview and the detail Select indent expose options. |
-| Back leaves the current window | Separate day overview, event list, calendar, detail and confirmation windows. Back from calendar cancels browsing; Select applies the chosen date. |
-| Large type and clear hierarchy | Size 28 date/title headings, size 24 agenda titles, size 18 body/labels. Extra-large content size uses size 24 bodies and size 28 event titles, with stacked time fields. |
-| Few purposeful colors | Dark Oxford Blue headers with white titles, white body, black primary information and cobalt selection/labels; NOW/NEXT text conveys event state without relying only on color. |
-| Make overflow and additional actions apparent | Full-width ScrollLayer with a reserved bottom indicator strip and a small Select indent instead of a fixed navigation bar. Titles wrap fully in details. |
-| Use the status bar when current time helps | Native clock on agenda, calendar and detail screens. The clock and detail page use the full screen width. |
-| Give feedback without unnecessary distraction | Native menu/window/scroll transitions. No new animation loop or vibration on routine navigation. |
-| Clear feedback and confirmation for destructive actions | A bold confirmation dialog explains that clearing removes this watch's saved copy. Select confirms; Back cancels. |
-| Cache data and explain connection failures | Existing bounded cache/expiry remains intact. Saved/offline states and incomplete upcoming coverage remain visible. |
+| Glanceable purpose and clear hierarchy | Date glyph, day/year and large Work/Personal counts on the overview; time, title and location/source in the day timeline. |
+| Native button conventions | Overview Up/Down change dates; timeline Up/Down select events; Select advances or starts dictation in details; Back leaves the current window. Held Select on overview/list opens options. |
+| Purposeful colors | Charcoal (`GColorDarkGray`) for past, navy (`GColorOxfordBlue`) for today and dark teal (`GColorMidnightGreen`) for future. White text provides contrast; date labels prevent relying only on color. |
+| Full-screen, minimal pages | Overview/details fill the display with one dark color. No clock bars, instructions or status footers. Details show only the date icon, start/end and title until a room is entered. |
+| Familiar native Timeline | White cards, blue icon rail, calendar glyphs and a selected-event triangle. Cards/icons ease together on button presses. |
+| Lightweight feedback | One 180-ms SDK animation per timeline move, canceled cleanly on interruption; no idle timer or routine vibration. |
+| Readability and overflow | System fonts, largest-text support, wrapped full titles and scrollable room sections. The content indicator uses the same dark background and does not overlap text. |
+| Clear errors and confirmation | Native dictation confirmation; recognition/parse/storage errors appear in separate dialogs. Clearing saved events remains a native confirmation flow. |
+| Minimal data | No attendee request in the current adapter; watch-only bounded room annotations and hashed calendar-group preferences. Provider coverage limits remain documented, even though the user requested no status labels on the pages. |
 
-The calendar keeps a Monday-first seven-column grid with size 18 day numbers, a filled selection, outlined today and dots only for received events. It uses actual display bounds rather than a hardcoded resolution. The rectangular emery target is the supported platform; reading round-design guidance does not imply a round-watch build was tested.
+The separate month grid remains a native-style Monday-first calendar with size 18 day numbers, filled selection, outlined today and dots for received events.
 
-## Timeline layout reference
+## Timeline and dictation source references
 
-The 0.5 revision follows the user's native Timeline screenshot without retaining its event content. Source inspection also confirmed the layout in [calendar_layout.c](https://github.com/coredevices/PebbleOS/blob/8bbd9407edc63198e39c1996f866af6e2be3ef96/fw/services/timeline/calendar_layout.c), the Select affordance in [action_button.c](https://github.com/coredevices/PebbleOS/blob/8bbd9407edc63198e39c1996f866af6e2be3ef96/fw/applib/ui/action_button.c), and its use in [pin_window.c](https://github.com/coredevices/PebbleOS/blob/8bbd9407edc63198e39c1996f866af6e2be3ef96/fw/apps/system/timeline/pin_window.c). These internal firmware components are references, not callable SDK APIs or dependencies. PebbleCal draws its own date icon, triangle/square start/end markers and a 13-pixel black Select circle centered four pixels outside the screen using public SDK primitives.
+The requested screenshots were used as layout references without copying their real event titles or URLs. Source inspection includes [calendar_layout.c](https://github.com/coredevices/PebbleOS/blob/8bbd9407edc63198e39c1996f866af6e2be3ef96/fw/services/timeline/calendar_layout.c), [timeline/layer.c](https://github.com/coredevices/PebbleOS/blob/8bbd9407edc63198e39c1996f866af6e2be3ef96/fw/apps/system/timeline/layer.c), [animations.h](https://github.com/coredevices/PebbleOS/blob/8bbd9407edc63198e39c1996f866af6e2be3ef96/fw/apps/system/timeline/animations.h) and [action_button.c](https://github.com/coredevices/PebbleOS/blob/8bbd9407edc63198e39c1996f866af6e2be3ef96/fw/applib/ui/action_button.c). These are design references, not firmware APIs called by the app. The app uses public SDK primitives, Animation, Layer and DictationSession; icons are independently drawn.
 
-The overview has no MenuLayer competing for its buttons or drawing over the footer. Its body is bounded between the measured header and footer; long preview titles use ellipsis, while full detail titles wrap and scroll. The event list is a separate native menu window with focused rows centered so their calendar source is not cut off. Detail text reserves a small right margin for the indent, preserving substantially more width than an ActionBarLayer. No additional timer, phone request or persistent copy was introduced for date browsing.
+Core's existing voice path was checked against its `1.15.0.1` tag: [VoiceSessionManager](https://github.com/coredevices/mobileapp/blob/1.15.0.1/libpebble3/src/commonMain/kotlin/io/rebble/libpebblecommon/connection/endpointmanager/audio/VoiceSessionManager.kt), [HybridTranscription](https://github.com/coredevices/mobileapp/blob/1.15.0.1/pebble/src/commonMain/kotlin/coredevices/pebble/services/HybridTranscription.kt) and [STTRouter](https://github.com/coredevices/mobileapp/blob/1.15.0.1/pebble/src/commonMain/kotlin/coredevices/pebble/services/STTRouter.kt). Speech processing depends on the selected Core mode; this app neither guarantees offline speech nor introduces another speech service.
 
 ## Guide pages and nested resources accessed
 
@@ -62,4 +61,4 @@ Repositories were cloned for source inspection; they are research references, no
 
 ## Assets and licensing
 
-Four unmodified action PNGs (up, down, ellipsis, check) come from [the official documentation assets](https://github.com/coredevices/sdk-docs/tree/a9641e4db0426a026151f6d689255ea724904800/source/assets/images/guides/design-and-interaction/icons), offered under the repository's Apache 2.0 license. They are stored in `resources/images/pebble`. The [license copy](licenses/pebble-sdk-docs-Apache-2.0.txt) is included. Only the confirmation check is packaged in version 0.5; the other three reference icons no longer consume watch resources. The original launcher icon and primitive calendar glyph remain independently authored. Example C implementations were references; no example module is bundled into the app. All preview calendar data is fictional.
+Four unmodified action PNGs (up, down, ellipsis, check) come from [the official documentation assets](https://github.com/coredevices/sdk-docs/tree/a9641e4db0426a026151f6d689255ea724904800/source/assets/images/guides/design-and-interaction/icons), offered under the repository's Apache 2.0 license. They are stored in `resources/images/pebble`. The [license copy](licenses/pebble-sdk-docs-Apache-2.0.txt) is included. Only the confirmation check is packaged in versions 0.5–0.6; the other three reference icons no longer consume watch resources. The original launcher icon and primitive calendar glyph remain independently authored. Example C implementations were references; no example module is bundled into the app. All preview calendar data is fictional.

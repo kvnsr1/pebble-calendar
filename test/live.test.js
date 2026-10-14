@@ -39,7 +39,7 @@ test('live source uses the built-in calendar contract and validates every return
   assert.deepEqual(result.errors, ['INVALID_DATA', 'PERMISSION_DENIED']);
 });
 
-test('live source requests attendee names only from an advertised compatible Calendar source', function() {
+test('minimal live source does not request or retain unused attendee names even when advertised', function() {
   var configuration;
   var declarations = [
     { category: 'other', items: ['event'], properties: { attendees: ['longText'] } },
@@ -47,15 +47,17 @@ test('live source requests attendee names only from an advertised compatible Cal
   ];
   var result = read({ enumeratePlugins: function() { return [{ uuid: source.BUILTIN_UUID, sources: declarations }]; },
     subscribeToSource: function(config) { configuration = config; return {}; } });
-  assert.ok(configuration.properties.includes('attendees'));
+  assert.equal(configuration.properties.includes('attendees'), false);
   configuration.onData({ pluginUuid: source.BUILTIN_UUID, instances: [{ properties: {
     name: { longText: { text: 'Synthetic review' } }, starts_at: { timestamp: { value: 1900000000 } },
     ends_at: { timestamp: { value: 1900003600 } }, all_day: { boolean: { value: false } },
+    location: { longText: { text: 'ABC | MB2-3rd-3.07 Example Room (8)' } },
     attendees: { longText: { text: 'Alex Sample\nABC | MB2-3rd-3.07 Example Room (8) [Team Room, Video]' } }
   } }] });
   assert.deepEqual(result.errors, []);
-  assert.equal(result.data[0].events[0].attendees, 'Alex Sample');
-  assert.equal(result.data[0].events[0].room.source, 1);
+  assert.equal(result.data[0].events[0].attendees, '');
+  assert.equal(result.data[0].events[0].room, null);
+  assert.equal(result.data[0].events[0].location, 'ABC | MB2-3rd-3.07 Example Room (8)');
 });
 test('wrong source or attendee shape cannot enable an unadvertised extension', function() {
   [

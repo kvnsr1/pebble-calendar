@@ -9,18 +9,13 @@ require('./bridge')(Pebble, function(onData, onError) {
   if (!calendarPlugin) {
     onError('PLUGIN_UNAVAILABLE'); return null;
   }
-  var attendeesSupported = Array.isArray(calendarPlugin.sources) && calendarPlugin.sources.some(function(declaration) {
-    return declaration.category === 'calendar' && Array.isArray(declaration.items) && declaration.items.indexOf('event') !== -1 &&
-      declaration.properties && Array.isArray(declaration.properties.attendees) &&
-      declaration.properties.attendees.indexOf('longText') !== -1;
-  });
+  // The minimal UI needs no attendee data; rooms are entered by the user.
   var properties = ['name', 'location', 'starts_at', 'ends_at', 'all_day', 'calendar'];
-  if (attendeesSupported) properties.push('attendees');
   return Pebble.subscribeToSource({
     plugin: source.BUILTIN_UUID, category: 'calendar', item: 'event',
     properties: properties,
     onData: function(envelope) {
-      try { onData(source.normalize(envelope, Date.now(), attendeesSupported)); }
+      try { onData(source.normalize(envelope, Date.now(), false, false)); }
       catch (_) { onError('INVALID_DATA'); }
     },
     onError: function(error) { onError(error && error.code || 'UNKNOWN'); }

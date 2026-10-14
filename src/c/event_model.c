@@ -1,6 +1,54 @@
 #include <pebble.h>
 #include "calendar.h"
 #include <string.h>
+#include <ctype.h>
+
+static uint64_t s_group_hashes[EVENT_LIMIT];
+static CalendarGroup s_group_values[EVENT_LIMIT];
+uint64_t calendar_name_hash(const char *name) {
+  uint64_t hash = UINT64_C(14695981039346656037);
+  for (const unsigned char *p = (const unsigned char *)name; *p; ++p) hash = (hash ^ *p) * UINT64_C(1099511628211);
+  return hash;
+}
+void calendar_groups_reset(void) { memset(s_group_hashes, 0, sizeof(s_group_hashes)); memset(s_group_values, 0, sizeof(s_group_values)); }
+bool calendar_group_restore(uint64_t hash, CalendarGroup group) {
+  if (!hash || (unsigned)group > CalendarGroupPersonal) return false;
+  int slot = -1;
+  for (int i = 0; i < EVENT_LIMIT; ++i) {
+    if (s_group_hashes[i] == hash) { slot = i; break; }
+    if (slot < 0 && !s_group_hashes[i]) slot = i;
+  }
+  if (slot < 0) return false;
+  s_group_hashes[slot] = hash; s_group_values[slot] = group; return true;
+}
+
+static bool name_token(const char *name, const char *token) {
+  size_t length = strlen(token);
+  for (const char *p = name; *p; ++p) {
+    if (p != name && isalnum((unsigned char)p[-1])) continue;
+    size_t i = 0;
+    while (i < length && p[i] && tolower((unsigned char)p[i]) == token[i]) ++i;
+    if (i == length && !isalnum((unsigned char)p[i])) return true;
+  }
+  return false;
+}
+CalendarGroup calendar_group(const char *name) {
+  if (!name) return CalendarGroupOther;
+  uint64_t hash = calendar_name_hash(name);
+  for (int i = 0; i < EVENT_LIMIT; ++i) if (s_group_hashes[i] == hash) return s_group_values[i];
+  if (name_token(name, "uber")) return CalendarGroupWork;
+  if (name_token(name, "gmail")) return CalendarGroupPersonal;
+  return CalendarGroupOther;
+}
+void calendar_day_counts(const CalendarSnapshot *snapshot, time_t day, int counts[3]) {
+  memset(counts, 0, 3 * sizeof(*counts));
+  for (int i = 0; i < snapshot->count; ++i)
+    if (calendar_event_on_day(&snapshot->events[i], day)) ++counts[calendar_group(snapshot->events[i].calendar)];
+}
+int calendar_day_relation(time_t day, time_t now) {
+  int chosen = calendar_day_code(day, false), today = calendar_day_code(now, false);
+  return chosen < today ? -1 : chosen > today ? 1 : 0;
+}
 
 bool calendar_event_valid(const CalendarEvent *event) {
   return event->start > 0 && event->end > event->start &&

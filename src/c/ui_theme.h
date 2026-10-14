@@ -12,3 +12,7 @@ StatusBarLayer *ui_status_bar(Window *window);
 ActionBarLayer *ui_confirmation_bar(Window *window, ClickConfigProvider clicks);
 void ui_theme_init(void);
 void ui_theme_deinit(void);
+GColor ui_day_color(time_t day);
+void ui_date_icon(GContext *ctx, time_t instant, bool utc, GPoint origin, GColor ink);
+void ui_room_icon(GContext *ctx, GPoint origin, GColor ink);
+void ui_select_indent(Layer *layer, GContext *ctx);

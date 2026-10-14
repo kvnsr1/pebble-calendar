@@ -1,5 +1,6 @@
 #include <pebble.h>
 #include "calendar.h"
+#include "room_notes.h"
 
 #define ACTIVE_KEY 100
 #define BANK_BASE 110
@@ -23,6 +24,7 @@ static uint32_t checksum(const void *data, size_t size) {
 }
 
 void calendar_store_clear(void) {
+  room_notes_clear();
   persist_delete(ACTIVE_KEY);
   for (int bank = 0; bank < 2; ++bank)
     for (int key = 0; key < BANK_STRIDE; ++key) persist_delete(BANK_BASE + bank * BANK_STRIDE + key);
