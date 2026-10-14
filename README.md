@@ -2,7 +2,7 @@
 
 A native day overview, animated event timeline and month calendar for Pebble Time 2 (`emery`). It reads the calendars already enabled in Pebble Core through the built-in experimental Calendar plugin. No Google login, ICS link, hosted configuration, new backend or separate iPhone app is required.
 
-**Version 0.6 is a development draft.** Builds and host tests pass, but event-detail redraw and repeated synthetic room entry are not reliably validated in the emulator. A blank-detail redraw also reproduced with the previous 0.5 source in the same emulator. The cause is unresolved; this does not establish that the physical watch is affected or unaffected. The latest CloudPebble installation retry authenticated but timed out waiting for the iPhone. See [validation](docs/validation.md).
+**Version 0.6 is a development draft.** Builds and host tests pass, but event-detail redraw and repeated synthetic room entry are not reliably validated in the emulator. A blank-detail redraw also reproduced with the previous 0.5 source in the same emulator. The cause is unresolved; this does not establish that the physical watch is affected or unaffected. The live 0.6.0 draft was successfully installed through CloudPebble on 2026-10-14; installation alone does not verify the UI or microphone behavior. See [validation](docs/validation.md).
 
 **Provider limit: ten upcoming events across all enabled calendars, within seven days. Completed events are excluded. Counts represent received entries, not a complete day's schedule.** Past dates ordinarily have no historical data. A dash means counts are unavailable, rather than zero. Zero only means no matching entries were received for that date.
 

@@ -36,3 +36,7 @@ Automated native tests cover DST transitions with synthetic dates; physical time
 4. Cancel recognition, disconnect the phone, disable speech and try an invalid room phrase. Verify errors/cancellation preserve the previous note and do not fabricate a room.
 5. Change/delete the synthetic event and refresh. Verify its note disappears. Clear saved events and revoke the app's Calendar permission; verify annotations clear along with the cache.
 6. Keep real spoken room information, corporate events and recordings out of logs/screenshots/test artifacts. This voice flow has not been certified by the SDK emulator.
+
+## Deployment checkpoint — 2026-10-14
+
+The live 0.6.0 draft installed successfully through the cloud Developer Connection. This confirms package transfer only. Verify event-detail redraw after opening/reopening an event, Select dictation and confirmation (for example MB4 9.17), and the resulting Floor 9 / Room 17 note on the actual watch. Do not share private event content in test logs or screenshots.
