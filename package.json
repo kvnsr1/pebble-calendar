@@ -1,6 +1,6 @@
 {
   "name": "pebble-calendar",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "author": "kvnsr1",
   "private": true,
   "keywords": ["pebble-app"],
@@ -24,6 +24,12 @@
       "FLOOR": 19, "ROOM_NUMBER": 20, "CAPACITY": 21, "FACILITIES": 22,
       "ROOM_SOURCE": 23
     },
-    "resources": { "media": [{ "type": "bitmap", "name": "IMAGE_MENU_ICON", "file": "images/menu_icon.png", "menuIcon": true }] }
+    "resources": { "media": [
+      { "type": "bitmap", "name": "IMAGE_MENU_ICON", "file": "images/menu_icon.png", "menuIcon": true },
+      { "type": "bitmap", "name": "ACTION_UP", "file": "images/pebble/up.png" },
+      { "type": "bitmap", "name": "ACTION_DOWN", "file": "images/pebble/down.png" },
+      { "type": "bitmap", "name": "ACTION_MORE", "file": "images/pebble/more.png" },
+      { "type": "bitmap", "name": "ACTION_CHECK", "file": "images/pebble/check.png" }
+    ] }
   }
 }

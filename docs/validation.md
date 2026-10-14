@@ -36,3 +36,15 @@ Follow [the device checklist](device-validation.md) for those checks. Do not int
 - Version 0.3 installed successfully on the physical watch through the cloud Developer Connection. The first attempt authenticated but timed out waiting for the phone; the retry connected and reported “App install succeeded.” No live calendar content or watch screenshots were retrieved. Official Core 1.15.0.1 still cannot supply attendees through the plugin.
 
 The Core patch is a proposed interface, not an official release. iOS compilation/signing, actual EventKit attendee delivery and Timeline coexistence still require verification. This workspace is Linux and has no Xcode/iPhone signing environment; the user confirmed no Mac is available. No real attendee data was read and no upstream issue or PR was posted.
+
+## Version 0.4 Pebble-guided redesign — 2026-10-14
+
+- Reviewed the three requested guide indexes, all their child guide pages, the current official documentation source and 17 linked example repositories. The nested source/resource inventory and design decisions are recorded in [design.md](design.md).
+- All 27 Node tests and the host C suite passed after the UI work. Live and synthetic demo emery builds succeeded, with no application compiler errors. The SDK's existing RWX segment linker warning remains. Live RAM footprint: 41,342 bytes / 128 KiB; resources: 4,629 bytes / 256 KiB. Runtime heap is additional.
+- Both packaged PBWs were inspected: version 0.4.0, emery, manifest version 2, Calendar permission only, and no demo attendee strings in the live JS bundle. Checksums are in `dist/SHA256SUMS`.
+- Synthetic emulator screens inspected for the agenda, 24-hour and 12-hour timed details, all-day details, room fields, people, native action menu, month navigation, calendar Back cancellation, selecting a date, and empty/out-of-window days.
+- Extra-large text was checked after app restart, including complete focused agenda rows, stacked time fields, clear confirmation, actual clearing of the saved snapshot, and successful refresh afterward. Empty-menu positioning was corrected after testing. The detail indicator has a reserved strip and the patterned scroll shadow was removed.
+- Final fictional previews are stored in `docs/screenshots`. They contain no personal/corporate records. No screenshot or calendar content was retrieved from the physical watch.
+- Version 0.4 installed successfully on the physical watch through the cloud Developer Connection. The first attempt timed out waiting for the phone; the retry connected and reported “App install succeeded.” Physical data delivery and UI use are still user/device checks, separate from installation.
+
+The provider still supplies at most ten upcoming events within seven days. Attendees require the prepared Core enhancement or a compatible official release; the redesign does not change the phone's installed Calendar plugin.
